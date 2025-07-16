@@ -30,6 +30,8 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
+# backend/mazzarino_connect/settings.py
+
 INSTALLED_APPS = [
     'core',
     'django.contrib.admin',
@@ -38,10 +40,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Apps de terceiros (adicione AQUI)
+    'rest_framework',
+    'corsheaders',
 ]
+
+# backend/mazzarino_connect/settings.py
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # <-- Adicione AQUI
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,10 +81,16 @@ WSGI_APPLICATION = 'mazzarino_connect.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# backend/mazzarino_connect/settings.py
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mazzarinoconnect', # O nome do banco que você criou
+        'USER': 'postgres',         # Seu usuário do PostgreSQL (geralmente 'postgres')
+        'PASSWORD': 'Pitoco@1974', # <--- COLOQUE SUA SENHA REAL AQUI
+        'HOST': 'localhost',        # ou 127.0.0.1
+        'PORT': '5432',
     }
 }
 
@@ -121,3 +135,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'core.CustomUser'
+# backend/mazzarino_connect/settings.py (no final do arquivo)
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173", # Endereço do nosso frontend React
+    "http://127.0.0.1:5173",
+]
