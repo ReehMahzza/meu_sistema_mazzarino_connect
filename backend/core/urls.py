@@ -1,8 +1,9 @@
-# backend/core/urls.py
+# Em backend/core/urls.py
 from django.urls import path
-from .views import RegisterView, LoginView
+# REMOVIDO: LoginView
+from .views import RegisterView, DashboardView # ADICIONADO: DashboardView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
-    path('login/', LoginView.as_view(), name='login'),
+    path('dashboard/', DashboardView.as_view(), name='dashboard'), # Rota protegida
 ]

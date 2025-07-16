@@ -27,11 +27,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
-# Application definition
-
-# backend/mazzarino_connect/settings.py
-
 INSTALLED_APPS = [
     'core',
     'django.contrib.admin',
@@ -40,9 +35,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Apps de terceiros (adicione AQUI)
     'rest_framework',
     'corsheaders',
+    'rest_framework_simplejwt',
 ]
 
 # backend/mazzarino_connect/settings.py
@@ -140,6 +135,12 @@ AUTH_USER_MODEL = 'core.CustomUser'
 # backend/mazzarino_connect/settings.py (no final do arquivo)
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Endereço do nosso frontend React
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
