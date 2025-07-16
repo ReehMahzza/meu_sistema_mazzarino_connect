@@ -1,6 +1,8 @@
-# backend/core/serializers.py
+# Em backend/core/serializers.py
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from .models import Case, Document # ADICIONADO: Importe Case e Document
 
 CustomUser = get_user_model()
 
@@ -10,7 +12,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'username', 'first_name', 'last_name', 'password', 'password2', 'cpf', 'telefone', 'setor_ou_equipe') # Adicionado 'setor_ou_equipe'
+        fields = ('email', 'username', 'first_name', 'last_name', 'password', 'password2', 'cpf', 'telefone', 'setor_ou_equipe')
         extra_kwargs = {
             'first_name': {'required': True},
             'last_name': {'required': True},
@@ -24,7 +26,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        # O AbstractUser requer username, mesmo que usemos email para login.
-        # Certifique-se de que username é passado ou gerado, ou remova-o de REQUIRED_FIELDS no CustomUser
         user = CustomUser.objects.create_user(**validated_data)
         return user
+
+# ADICIONAR AQUI: Novos serializers
+class CaseSerializer(serializers.ModelSerializer):
+    # Adicionado para incluir o nome completo do criador
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = Case
+        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'created_by_name']
+        read_only_fields = ['created_by', 'created_by_name'] # O 'created_by' será definido na view
+
+class DocumentSerializer(serializers.ModelSerializer):
+    # Para exibir o nome do usuário que fez o upload, em vez de apenas o ID.
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
+    case_title = serializers.CharField(source='case.title', read_only=True) # ADICIONADO: Título do caso
+
+    class Meta:
+        model = Document
+        fields = [
+            'id', 'case', 'case_title', 'file_name', 'file_type', 'file_url', # Adicionado 'case_title'
+            'upload_date', 'description', 'uploaded_by', 'uploaded_by_name'
+        ]
+        # Campos que não serão enviados pelo frontend, mas definidos pelo backend.
+        read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'uploaded_by_name', 'case_title']
