@@ -3,9 +3,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions, generics # ADICIONADO: generics
-from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer # ADICIONADO: os novos serializers
-from .models import Case, Document # ADICIONADO: os novos modelos
+from rest_framework import status, permissions, generics
+from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer, ProcessMovementSerializer
+from .models import Case, Document, ProcessMovement
 
 CustomUser = get_user_model()
 
@@ -27,60 +27,81 @@ class DashboardView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# ADICIONAR AQUI: Novas views para Casos e Documentos
 class CaseListCreateView(generics.ListCreateAPIView):
-    """
-    View para listar os casos do usuário logado ou criar um novo caso.
-    """
     serializer_class = CaseSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Retorna apenas os casos criados pelo usuário logado.
         return Case.objects.filter(created_by=self.request.user)
 
     def perform_create(self, serializer):
-        # Associa o usuário logado automaticamente ao criar um novo caso.
-        serializer.save(created_by=self.request.user)
+        case = serializer.save(created_by=self.request.user)
+        ProcessMovement.objects.create(
+            case=case,
+            actor=self.request.user,
+            movement_type='Criação',
+            content='Caso criado no sistema.'
+        )
 
 class DocumentListCreateView(generics.ListCreateAPIView):
-    """
-    View para listar documentos de um caso específico ou fazer upload de um novo.
-    """
     serializer_class = DocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Filtra os documentos pelo ID do caso passado na URL.
         case_id = self.kwargs['case_id']
-        # Garante que o usuário só pode listar documentos de casos que ele criou.
         return Document.objects.filter(case_id=case_id, case__created_by=self.request.user)
 
     def perform_create(self, serializer):
-        # Gera a URL fictícia e associa o usuário e o caso.
         case_id = self.kwargs['case_id']
-        # Garante que o caso pertence ao usuário logado antes de associar o documento.
         case = Case.objects.get(id=case_id, created_by=self.request.user)
         file_name = serializer.validated_data.get('file_name')
-        # Gerando um URL fictício para simular o armazenamento
-        # Use um nome de arquivo seguro (sem caracteres especiais)
-        safe_file_name = file_name.replace(" ", "_").replace("/", "_") # Exemplo simples de sanitização
-        fake_url = f"https://docs.mazzarino.com/fake-storage/{case.id}/{self.request.user.id}/{safe_file_name}.{serializer.validated_data.get('file_type')}" # Melhorado para incluir tipo e user_id
+        safe_file_name = file_name.replace(" ", "_").replace("/", "_")
+        fake_url = f"https://docs.mazzarino.com/fake-storage/{case.id}/{self.request.user.id}/{safe_file_name}.{serializer.validated_data.get('file_type')}"
 
-        serializer.save(
+        document = serializer.save(
             uploaded_by=self.request.user,
             case=case,
             file_url=fake_url
         )
+        # O associated_document agora recebe o objeto Document
+        ProcessMovement.objects.create(
+            case=case,
+            actor=self.request.user,
+            movement_type='Upload de Documento',
+            content=f'Realizado o upload do documento: "{document.file_name}".',
+            associated_document=document # Passa o OBJETO document aqui
+        )
 
 class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    View para ver, atualizar ou deletar um documento específico.
-    """
     serializer_class = DocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'pk' # Garante que o campo de busca seja 'pk' (chave primária)
+    lookup_field = 'pk'
 
     def get_queryset(self):
-        # Garante que o usuário só possa acessar seus próprios documentos.
         return Document.objects.filter(uploaded_by=self.request.user)
+
+class ProcessMovementListCreateView(generics.ListCreateAPIView):
+    serializer_class = ProcessMovementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        case_id = self.kwargs['case_id']
+        return ProcessMovement.objects.filter(
+            case_id=case_id,
+            case__created_by=self.request.user
+        ).order_by('-timestamp')
+
+    def perform_create(self, serializer):
+        case_id = self.kwargs['case_id']
+        case = Case.objects.get(id=case_id, created_by=self.request.user)
+        # Se 'associated_document_id' foi passado, use o objeto Document
+        associated_doc_id = serializer.validated_data.get('associated_document') # Isso virá como objeto Document do serializer
+
+        movement = serializer.save(
+            actor=self.request.user,
+            case=case,
+            associated_document=associated_doc_id # Garante que o objeto Document é passado corretamente
+        )
+        if movement.movement_type:
+            case.current_status = movement.movement_type
+            case.save()

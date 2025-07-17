@@ -50,8 +50,11 @@ export const AuthProvider = ({ children }) => {
     // Cria uma instância do axios para ser usada com interceptor
     const axiosInstance = axios.create({
         baseURL,
-        headers: { Authorization: `Bearer ${authTokens?.access}` }
-    });
+        headers: {
+        'Content-Type': 'application/json', // ADICIONADO: Garante Content-Type JSON
+        Authorization: `Bearer ${authTokens?.access}`
+    }
+});
 
     axiosInstance.interceptors.request.use(async req => {
         // Lógica para renovar o token se estiver expirado pode ser adicionada aqui no futuro.
