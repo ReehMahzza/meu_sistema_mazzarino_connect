@@ -4,17 +4,22 @@ from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
-from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer, ProcessMovementSerializer
+from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer, ProcessMovementSerializer, ActorSerializer # Adicione ActorSerializer aqui
 from .models import Case, Document, ProcessMovement
 
 CustomUser = get_user_model()
 
 class RegisterView(APIView):
+    # MODIFICAR AQUI: Retornar dados do usuário criado
     def post(self, request, *args, **kwargs):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            return Response({"message": "Usuário registrado com sucesso!"}, status=status.HTTP_201_CREATED)
+            # Retorna os dados do usuário para que o frontend possa usá-los
+            return Response({
+                "message": "Usuário registrado com sucesso!",
+                "user": ActorSerializer(user).data # Usar ActorSerializer para formatar a saída do usuário
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class DashboardView(APIView):
@@ -32,15 +37,25 @@ class CaseListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Case.objects.filter(created_by=self.request.user)
+        # Inclui 'created_by' e 'client' para que o serializer possa acessá-los diretamente
+        return Case.objects.filter(created_by=self.request.user).select_related('created_by', 'client')
 
+    # MODIFICAR AQUI: Associar o caso ao cliente e ao funcionário
     def perform_create(self, serializer):
-        case = serializer.save(created_by=self.request.user)
+        client_id = serializer.validated_data.pop('client_id') # Pega o client_id do serializer
+        client = get_user_model().objects.get(id=client_id) # Busca o objeto Cliente
+
+        case = serializer.save(
+            created_by=self.request.user, # O funcionário logado
+            client=client # O novo cliente associado
+        )
+
+        # Cria o primeiro andamento
         ProcessMovement.objects.create(
             case=case,
             actor=self.request.user,
             movement_type='Criação',
-            content='Caso criado no sistema.'
+            content=f"Caso criado para o cliente {client.email} pelo funcionário {self.request.user.email}."
         )
 
 class DocumentListCreateView(generics.ListCreateAPIView):
@@ -49,7 +64,7 @@ class DocumentListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         case_id = self.kwargs['case_id']
-        return Document.objects.filter(case_id=case_id, case__created_by=self.request.user)
+        return Document.objects.filter(case_id=case_id, case__created_by=self.request.user).select_related('uploaded_by')
 
     def perform_create(self, serializer):
         case_id = self.kwargs['case_id']
@@ -63,13 +78,12 @@ class DocumentListCreateView(generics.ListCreateAPIView):
             case=case,
             file_url=fake_url
         )
-        # O associated_document agora recebe o objeto Document
         ProcessMovement.objects.create(
             case=case,
             actor=self.request.user,
             movement_type='Upload de Documento',
             content=f'Realizado o upload do documento: "{document.file_name}".',
-            associated_document=document # Passa o OBJETO document aqui
+            associated_document=document
         )
 
 class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -78,7 +92,7 @@ class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        return Document.objects.filter(uploaded_by=self.request.user)
+        return Document.objects.filter(uploaded_by=self.request.user).select_related('uploaded_by')
 
 class ProcessMovementListCreateView(generics.ListCreateAPIView):
     serializer_class = ProcessMovementSerializer
@@ -89,18 +103,18 @@ class ProcessMovementListCreateView(generics.ListCreateAPIView):
         return ProcessMovement.objects.filter(
             case_id=case_id,
             case__created_by=self.request.user
-        ).order_by('-timestamp')
+        ).select_related('actor', 'associated_document').order_by('-timestamp')
 
     def perform_create(self, serializer):
         case_id = self.kwargs['case_id']
         case = Case.objects.get(id=case_id, created_by=self.request.user)
-        # Se 'associated_document_id' foi passado, use o objeto Document
-        associated_doc_id = serializer.validated_data.get('associated_document') # Isso virá como objeto Document do serializer
+
+        associated_doc_obj = serializer.validated_data.get('associated_document') 
 
         movement = serializer.save(
             actor=self.request.user,
             case=case,
-            associated_document=associated_doc_id # Garante que o objeto Document é passado corretamente
+            associated_document=associated_doc_obj
         )
         if movement.movement_type:
             case.current_status = movement.movement_type

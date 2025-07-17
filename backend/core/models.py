@@ -1,8 +1,8 @@
-# backend/core/models.py
+# Em backend/core/models.py
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.conf import settings # Importe settings
+from django.conf import settings
 
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
@@ -10,11 +10,32 @@ class CustomUser(AbstractUser):
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
 
+    # MODIFICAR AQUI: Tornar campos de nome e username opcionais
+    username = models.CharField(
+        ('username'),
+        max_length=150,
+        unique=True, # Mantenha unique se o username será gerado ou será único
+        help_text=('Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'),
+        validators=[AbstractUser.username_validator],
+        error_messages={
+            'unique': ("A user with that username already exists."),
+        },
+        null=True, blank=True # <-- ADICIONADO: Torna opcional
+    )
+    first_name = models.CharField(('first name'), max_length=150, blank=True, null=True) # <-- ADICIONADO: Torna opcional
+    last_name = models.CharField(('last name'), max_length=150, blank=True, null=True) # <-- ADICIONADO: Torna opcional
+
+    # Dizemos ao Django que o campo de login agora será o 'email'.
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    # Campos necessários ao criar um superusuário pela linha de comando.
+    # Como username, first_name, last_name são opcionais para o modelo, ajustamos aqui.
+    # Se email é USERNAME_FIELD, ele já é implicitamente requerido.
+    REQUIRED_FIELDS = [] # <-- MODIFICADO: Deixe vazio para não exigir username/nomes ao criar superusuário se eles forem opcionais no modelo.
 
     def __str__(self):
         return self.email
+
 
 class Case(models.Model):
     title = models.CharField(max_length=255, verbose_name="Título do Caso")
@@ -22,11 +43,19 @@ class Case(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='cases',
-        verbose_name="Criado por"
+        related_name='created_cases',
+        verbose_name="Criado por (Funcionário)"
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual") # <-- ADICIONE ESTA LINHA AQUI!
+    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
+
+    # ADICIONAR CAMPO AQUI: Link para o cliente
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT, # Evita apagar um cliente se ele tiver casos
+        related_name='client_cases',
+        verbose_name="Cliente Associado"
+    )
 
     def __str__(self):
         return self.title

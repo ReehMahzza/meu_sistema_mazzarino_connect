@@ -27,19 +27,26 @@ function DocumentsPage() {
     const [loadingContent, setLoadingContent] = useState(false);
 
     // ADICIONADO: Função para registrar a visualização do caso
-    const logCaseView = useCallback(async (caseId) => {
+const logCaseView = useCallback(async (caseId) => {
     try {
-        const payload = { // ADICIONADO para depuração
-            case: caseId,
+        // MODIFICADO: Envia o ID do caso como parte do payload, não apenas na URL
+        const payload = {
+            case: caseId, // Envia o ID do caso como número
             movement_type: 'Visualização',
             content: 'Usuário visualizou os detalhes e andamentos do caso.'
         };
-        console.log("Enviando andamento de visualização:", payload); // ADICIONADO LOG
-        await axiosInstance.post(`/api/cases/${caseId}/movements/`, payload); // MODIFICADO para usar payload
+        console.log("Enviando andamento de visualização:", payload); // Para depuração
+        await axiosInstance.post(`/api/cases/${caseId}/movements/`, payload); // Rota POST para movimentos
+
+        // Após o log, busca novamente os andamentos para incluir a nova visualização
+        const movesResponse = await axiosInstance.get(`/api/cases/${caseId}/movements/`);
+        setMovements(movesResponse.data);
+
     } catch (error) {
-        console.error("Erro ao registrar andamento de visualização:", error.response?.data || error.message); // MODIFICADO LOG
+        // Melhorado o log para mostrar detalhes do erro do backend
+        console.error("Erro ao registrar andamento de visualização:", error.response?.data || error.message);
     }
-    }, [axiosInstance]);
+}, [axiosInstance]);
 
     // MODIFICADO: Função para selecionar um caso e buscar todo o seu conteúdo
     const handleSelectCase = useCallback(async (caseObj) => {
@@ -93,8 +100,12 @@ try {
         fetchCases();
     }, [handleSelectCase]); // Adicionado handleSelectCase como dependência
 
-    // MODIFICADO: Função de upload para também criar o andamento
-    const handleUploadSubmit = async (e) => {
+    // frontend/src/pages/DocumentsPage.jsx
+
+// ... (código acima)
+
+// MODIFICADO: Função de upload para também criar o andamento
+const handleUploadSubmit = async (e) => {
     e.preventDefault();
     if (!selectedCase || !newDocument.fileName || !newDocument.fileType) {
         alert("Por favor, preencha o nome e o tipo do arquivo.");
@@ -102,31 +113,32 @@ try {
     }
     try {
         // 1. Faz o upload do documento
-        const docPayload = { // ADICIONADO para depuração
-            case: selectedCase.id, // Envia o ID do caso
+        const docPayload = {
+            case: selectedCase.id, // Envia o ID do caso para o documento
             file_name: newDocument.fileName,
             file_type: newDocument.fileType,
             description: newDocument.description,
         };
-        console.log("Enviando upload de documento:", docPayload); // ADICIONADO LOG
-        const docResponse = await axiosInstance.post(`/api/cases/${selectedCase.id}/documents/`, docPayload); // MODIFICADO
+        console.log("Enviando upload de documento:", docPayload);
+        const docResponse = await axiosInstance.post(`/api/cases/${selectedCase.id}/documents/`, docPayload); // Rota POST para documentos
         const createdDoc = docResponse.data;
 
         // 2. ADICIONADO: Cria o andamento associado ao upload
-        const movementPayload = { // ADICIONADO para depuração
-            case: selectedCase.id, // Envia o ID do caso
+        const movementPayload = {
+            case: selectedCase.id, // Envia o ID do caso para o andamento
             movement_type: 'Upload de Documento',
             content: `Realizado o upload do documento: ${createdDoc.file_name}`,
             associated_document_id: createdDoc.id // Associa o ID do documento recém-criado
         };
-        console.log("Enviando andamento de upload:", movementPayload); // ADICIONADO LOG
-        await axiosInstance.post(`/api/cases/${selectedCase.id}/movements/`, movementPayload); // MODIFICADO
+        console.log("Enviando andamento de upload:", movementPayload);
+        await axiosInstance.post(`/api/cases/${selectedCase.id}/movements/`, movementPayload); // Rota POST para movimentos
 
         setNewDocument({ fileName: '', fileType: '', description: '' });
         setShowUploadForm(false);
+        // Recarrega todo o conteúdo do caso para refletir as mudanças
         handleSelectCase(selectedCase);
     } catch (error) {
-        console.error("Erro no processo de upload:", error.response?.data || error.message); // MODIFICADO LOG
+        console.error("Erro no processo de upload:", error.response?.data || error.message);
         alert("Falha no upload do documento.");
     }
 };
