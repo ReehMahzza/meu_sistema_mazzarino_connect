@@ -124,6 +124,12 @@ class Case(models.Model):
         null=True,
         verbose_name="Detalhes da Contraproposta"
     )
+# ADICIONAR NOVO CAMPO AQUI (FASE 6)
+    final_agreement_sent_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Data de Envio do Acordo Final"
+    )
 
     def __str__(self):
         return self.title

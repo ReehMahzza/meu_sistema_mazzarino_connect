@@ -1,6 +1,6 @@
 /*
 ================================================================================
-ARQUIVO: frontend/src/App.jsx (MODIFICADO)
+ARQUIVO: frontend/src/App.jsx (MODIFICADO para Nova Rota de Formalização do Acordo)
 ================================================================================
 */
 import React from 'react';
@@ -14,7 +14,8 @@ import NewCasePage from './pages/NewCasePage';
 import RequestSearchServicePage from './pages/RequestSearchServicePage';
 import CaseAnalysisPage from './pages/CaseAnalysisPage';
 import ProposalContractPage from './pages/ProposalContractPage';
-import BankNegotiationPage from './pages/BankNegotiationPage'; // ADICIONADO
+import BankNegotiationPage from './pages/BankNegotiationPage';
+import FormalizationPage from './pages/FormalizationPage'; // ADICIONADO
 
 function App() {
   return (
@@ -30,8 +31,9 @@ function App() {
             <Route path="/request-search-service" element={<RequestSearchServicePage />} />
             <Route path="/case-analysis" element={<CaseAnalysisPage />} />
             <Route path="/proposal-contract" element={<ProposalContractPage />} />
-            {/* ADICIONADA: Nova rota para negociação com o banco */}
             <Route path="/bank-negotiation" element={<BankNegotiationPage />} />
+            {/* ADICIONADA: Nova rota para formalização do acordo */}
+            <Route path="/formalization" element={<FormalizationPage />} /> {/* <-- NOVA ROTA AQUI */}
           </Route>
         </Routes>
       </AuthProvider>

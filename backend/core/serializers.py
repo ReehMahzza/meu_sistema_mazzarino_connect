@@ -111,6 +111,7 @@ class CaseSerializer(serializers.ModelSerializer):
             'current_status', 'movements', 'client', 'client_id',
             'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
             'proposal_sent_date', 'client_decision', 'docusign_status',
-            'dossier_sent_date', 'bank_response_status', 'counterproposal_details'
+            'dossier_sent_date', 'bank_response_status', 'counterproposal_details',
+            'final_agreement_sent_date' # <-- ADICIONE ESTA LINHA AQUI!
         ]
         read_only_fields = ['created_at', 'current_status', 'movements']
