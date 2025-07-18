@@ -92,7 +92,7 @@ class ProcessMovement(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='movements', verbose_name="Caso")
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL, # Mantém o andamento mesmo se o usuário for deletado
+        on_delete=models.SET_NULL,
         null=True,
         related_name='movements',
         verbose_name="Ator"
@@ -113,8 +113,11 @@ class ProcessMovement(models.Model):
     is_internal = models.BooleanField(default=True, verbose_name="Movimento Interno")
     notes = models.TextField(blank=True, null=True, verbose_name="Anotações Internas")
 
+    # ADICIONAR CAMPO AQUI
+    request_details = models.TextField(blank=True, null=True, verbose_name="Detalhes da Solicitação de Serviço") # <-- ADICIONE ESTA LINHA AQUI!
+
     class Meta:
-        ordering = ['-timestamp'] # Ordena sempre do mais novo para o mais antigo
+        ordering = ['-timestamp']
 
     def __str__(self):
         # Usamos .get_full_name() para pegar o nome completo se disponível, senão o email

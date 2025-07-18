@@ -123,3 +123,32 @@ class ProcessMovementListCreateView(generics.ListCreateAPIView):
         if movement.movement_type:
             case.current_status = movement.movement_type
             case.save()
+            # ADICIONAR NOVA VIEW AQUI (no final do arquivo)
+class RequestContractSearchView(APIView):
+    """
+    Registra uma solicitação para o Serviço de Busca de Contrato para um caso.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id, *args, **kwargs):
+        try:
+            # Garante que o caso exista e pertença ao usuário (ou que ele tenha permissão)
+            case = Case.objects.get(id=case_id, created_by=request.user)
+        except Case.DoesNotExist:
+            return Response({"error": "Caso não encontrado ou acesso não permitido."}, status=status.HTTP_404_NOT_FOUND)
+
+        details = request.data.get('request_details', '') # Pega os detalhes da requisição
+        if not details:
+            return Response({"error": "Detalhes da solicitação são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cria o andamento registrando a solicitação
+        movement = ProcessMovement.objects.create(
+            case=case,
+            actor=request.user,
+            movement_type='Solicitação de Serviço de Busca',
+            content=f"Solicitado serviço de busca de contrato. Detalhes: {details[:100]}...", # Limita o conteúdo para o log
+            request_details=details # Salva os detalhes completos aqui
+        )
+
+        serializer = ProcessMovementSerializer(movement)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

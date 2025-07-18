@@ -11,6 +11,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DocumentsPage from './pages/DocumentsPage';
 import NewCasePage from './pages/NewCasePage'; // ADICIONADO
+import RequestSearchServicePage from './pages/RequestSearchServicePage'; // ADICIONADO
+
 
 function App() {
   return (
@@ -22,8 +24,9 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
-            {/* ADICIONADA: Nova rota para criar cliente/caso */}
             <Route path="/new-case" element={<NewCasePage />} />
+            {/* ADICIONADA: Nova rota para solicitar serviço */}
+            <Route path="/request-search-service" element={<RequestSearchServicePage />} />
           </Route>
         </Routes>
       </AuthProvider>

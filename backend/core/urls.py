@@ -7,7 +7,8 @@ from .views import (
     CaseListCreateView,
     DocumentListCreateView,
     DocumentDetailView,
-    ProcessMovementListCreateView # ADICIONADO
+    ProcessMovementListCreateView,
+    RequestContractSearchView # <-- ADICIONE ESTE IMPORT AQUI!
 )
 
 urlpatterns = [
@@ -19,6 +20,9 @@ urlpatterns = [
     path('cases/<int:case_id>/documents/', DocumentListCreateView.as_view(), name='document-list-create'),
     path('documents/<int:pk>/', DocumentDetailView.as_view(), name='document-detail'),
 
-    # ADICIONADA: Nova rota para andamentos de processo
+    # Nova rota para andamentos de processo
     path('cases/<int:case_id>/movements/', ProcessMovementListCreateView.as_view(), name='process-movement-list-create'),
+
+    # ADICIONAR NOVA ROTA AQUI para Solicitação de Serviço de Busca de Contrato
+    path('cases/<int:case_id>/request-search-service/', RequestContractSearchView.as_view(), name='request-search-service'), # <-- ADICIONE ESTA LINHA AQUI!
 ]

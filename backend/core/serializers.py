@@ -86,10 +86,14 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
         model = ProcessMovement
         fields = [
             'id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector',
-            'to_sector', 'content', 'associated_document', 'associated_document_id', 'is_internal', 'notes'
+            'to_sector', 'content', 'associated_document', 'associated_document_id', 'is_internal', 'notes',
+            'request_details' # <-- ADICIONAR CAMPO AQUI!
         ]
         read_only_fields = ['actor', 'timestamp', 'associated_document']
-
+        # Torna o campo opcional na entrada da API
+        extra_kwargs = {
+            'request_details': {'required': False} # <-- ADICIONAR ESTE extra_kwargs AQUI!
+        }
 
 # MODIFICAR O CASE SERIALIZER EXISTENTE
 class CaseSerializer(serializers.ModelSerializer):
