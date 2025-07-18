@@ -15,6 +15,7 @@ const LogoutIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentCol
 const BanknotesIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>;
 const DocumentCheckIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const CurrencyDollarIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const ArchiveBoxArrowDownIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8.25V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V8.25m-18 0H12.75V19.5a2.25 2.25 0 002.25 2.25H19.5a2.25 2.25 0 002.25-2.25V8.25m-18 0H5.25m0 0H3M12 10.5v6m-3-3h6M12 17.25a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>;
 
 const MainLayout = ({ children }) => {
     const { user, logoutUser } = useContext(AuthContext);
@@ -56,6 +57,10 @@ const MainLayout = ({ children }) => {
                     {/* ADICIONADO: Link para a nova página de liquidação */}
                     <NavLink to="/liquidation" style={({ isActive }) => isActive ? activeLinkStyle : undefined} className="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 rounded-lg">
                         <CurrencyDollarIcon /> <span className="ml-4">Liquidação Financeira</span> {/* <-- NOVO LINK AQUI */}
+                    </NavLink>
+                    {/* ADICIONADO: Novo link para Encerramento de Casos */}
+                    <NavLink to="/case-completion" style={({ isActive }) => isActive ? activeLinkStyle : undefined} className="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 rounded-lg">
+                        <ArchiveBoxArrowDownIcon /> <span className="ml-4">Encerramento de Casos</span> {/* <-- NOVO LINK AQUI */}
                     </NavLink>
                     <NavLink to="#" className="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 rounded-lg mt-auto">
                         <SettingsIcon /> <span className="ml-4">Configurações</span>

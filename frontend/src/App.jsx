@@ -12,6 +12,7 @@ import ProposalContractPage from './pages/ProposalContractPage';
 import BankNegotiationPage from './pages/BankNegotiationPage';
 import FormalizationPage from './pages/FormalizationPage';
 import LiquidationPage from './pages/LiquidationPage'; // ADICIONADO
+import CaseCompletionPage from './pages/CaseCompletionPage'; // ADICIONADO
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path="/formalization" element={<FormalizationPage />} />
             {/* ADICIONADA: Nova rota para liquidação financeira */}
             <Route path="/liquidation" element={<LiquidationPage />} />
+            <Route path="/case-completion" element={<CaseCompletionPage />} />
           </Route>
         </Routes>
       </AuthProvider>

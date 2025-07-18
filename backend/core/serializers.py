@@ -104,7 +104,8 @@ class CaseSerializer(serializers.ModelSerializer):
             'proposal_sent_date', 'client_decision', 'docusign_status', # Fase 4
             'dossier_sent_date', 'bank_response_status', 'counterproposal_details', # Fase 5
             'final_agreement_sent_date', # Fase 6
-            'bank_payment_status', 'client_liquidation_date', 'commission_value' # Fase 7
+            'bank_payment_status', 'client_liquidation_date', 'commission_value', # Fase 7
+            'completion_date', 'final_communication_sent', 'survey_sent' # Fase 8
         ]
         read_only_fields = ['created_at', 'current_status', 'movements', 'client_detail'] # client_detail é apenas para leitura
 

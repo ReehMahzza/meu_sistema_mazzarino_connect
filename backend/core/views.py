@@ -423,3 +423,52 @@ class UserListView(generics.ListAPIView):
         if email:
             return CustomUser.objects.filter(email=email)
         return CustomUser.objects.all()[:10]  # Limitar resultado para evitar sobrecarga
+
+class CaseCompletionView(generics.UpdateAPIView):
+    """
+    View para atualizar os campos da conclusão do caso (Fase 8).
+    Cria andamentos correspondentes para cada atualização.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        
+        # Capturar valores antigos para comparação
+        old_completion_date = instance.completion_date
+        old_final_communication_sent = instance.final_communication_sent
+        old_survey_sent = instance.survey_sent
+
+        # Salvar as alterações
+        updated_instance = serializer.save()
+
+        # Criar andamentos baseados nas mudanças
+        if updated_instance.completion_date != old_completion_date and updated_instance.completion_date is not None:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Caso Concluído',
+                content=f'Caso concluído em {updated_instance.completion_date.strftime("%d/%m/%Y")}.'
+            )
+            updated_instance.current_status = 'Concluído'
+
+        if updated_instance.final_communication_sent != old_final_communication_sent and updated_instance.final_communication_sent:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Comunicação Final Enviada',
+                content='Comunicação final enviada ao cliente.'
+            )
+
+        if updated_instance.survey_sent != old_survey_sent and updated_instance.survey_sent:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Pesquisa de Satisfação Enviada',
+                content='Pesquisa de satisfação enviada ao cliente.'
+            )
+
+        # Salvar o status atualizado
+        updated_instance.save()

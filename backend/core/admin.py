@@ -36,7 +36,7 @@ class CaseAdmin(admin.ModelAdmin):
         'ia_analysis_result', 'human_analysis_result', 'proposal_sent_date',
         'client_decision', 'docusign_status', 'dossier_sent_date',
         'bank_response_status', 'client_liquidation_date', 'commission_value',
-        'final_agreement_sent_date'
+        'final_agreement_sent_date', 'completion_date', 'final_communication_sent', 'survey_sent' # ADICIONADO: Fase 8
     )
     list_filter = (
         'created_by', 'client', 'current_status', 'ia_analysis_result',

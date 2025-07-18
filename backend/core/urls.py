@@ -11,12 +11,12 @@ from .views import (
     ProcessMovementListCreateView,
     RequestContractSearchView,
     CaseAnalysisUpdateView,
-    # ADICIONADO: Views das Fases 4, 5, 6, 7
     CaseProposalContractView,
     CaseNegotiationUpdateView,
     CaseFormalizationView,
     CaseLiquidationView,
-    UserListView  # ← ADICIONAR ESTA IMPORTAÇÃO
+    UserListView,  # ← ADICIONAR ESTA IMPORTAÇÃO NO GEMINI
+    CaseCompletionView # ADICIONADO: View da Fase 8
 )
 # Não importe TokenObtainPairView e TokenRefreshView aqui, elas são importadas no urls.py principal do projeto
 # from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView # <-- NÃO IMPORTE AQUI!
@@ -41,6 +41,8 @@ urlpatterns = [
     path('cases/<int:pk>/negotiate/', CaseNegotiationUpdateView.as_view(), name='case-negotiation-update'), # Fase 5
     path('cases/<int:pk>/formalize/', CaseFormalizationView.as_view(), name='case-formalization-update'), # Fase 6
     path('cases/<int:pk>/liquidate/', CaseLiquidationView.as_view(), name='case-liquidation-update'), # Fase 7
+    path('cases/<int:pk>/complete/', CaseCompletionView.as_view(), name='case-completion-update'), # ADICIONADO: Fase 8
+
     
     # ADICIONAR ESTA LINHA:
     path('users/', UserListView.as_view(), name='user-list'),

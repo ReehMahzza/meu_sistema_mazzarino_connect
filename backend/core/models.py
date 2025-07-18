@@ -156,6 +156,20 @@ class Case(models.Model):
         blank=True,
         verbose_name="Valor da Comissão"
     )
+    # ADICIONAR NOVOS CAMPOS AQUI (FASE 8)
+    completion_date = models.DateField(
+         blank=True,
+         null=True,
+         verbose_name="Data de Conclusão do Caso"
+    )
+    final_communication_sent = models.BooleanField(
+        default=False,
+        verbose_name="Comunicação Final Enviada"
+    )
+    survey_sent = models.BooleanField(
+        default=False,
+        verbose_name="Pesquisa de Satisfação Enviada"
+    )    
 
     def __str__(self):
         return self.title
