@@ -244,7 +244,11 @@ const handleUploadSubmit = async (e) => {
                                                 <h4 className="font-bold text-gray-800 text-md">{move.movement_type}</h4>
                                                 <p className="text-xs text-gray-500">{new Date(move.timestamp).toLocaleString('pt-BR')}</p>
                                             </div>
-                                            <p className="text-sm text-gray-600">por: {move.actor.first_name} {move.actor.last_name}</p>
+                                            <p className="text-sm text-gray-600">
+                                                por: {move.actor_name && move.actor_email
+                                                    ? `${move.actor_name} (${move.actor_email})`
+                                                    : 'Usuário'}
+                                            </p>
 
                                             {move.content && <p className="mt-2 text-sm bg-gray-50 p-3 rounded-md border">{move.content}</p>}
 

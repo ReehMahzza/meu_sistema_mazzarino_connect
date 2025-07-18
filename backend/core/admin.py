@@ -1,10 +1,11 @@
-# backend/core/admin.py
+# Em backend/core/admin.py
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-# ADICIONADO: Importe ProcessMovement
-from .models import CustomUser, Case, Document, ProcessMovement
+# MODIFICADO: Importa apenas os modelos reais, não serializers como 'Actor'
+from .models import CustomUser, Case, Document, ProcessMovement # <-- ESTA DEVE SER A LINHA!
 
-# Registrar o CustomUser
+# Registro do CustomUser
 @admin.register(CustomUser)
 class CustomUserAdmin(BaseUserAdmin):
     fieldsets = (
@@ -29,10 +30,21 @@ class CustomUserAdmin(BaseUserAdmin):
 # Registro dos modelos Case e Document
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
-    list_display = ('title', 'created_by', 'current_status', 'created_at') # ADICIONADO: current_status
-    list_filter = ('created_by', 'current_status', 'created_at') # ADICIONADO: current_status
-    search_fields = ('title', 'description')
-    raw_id_fields = ('created_by',)
+    # ADICIONADO: client e novos campos da Fase 3/4/5/6/7 para exibição no admin
+    list_display = (
+        'title', 'created_by', 'client', 'current_status', 'created_at',
+        'ia_analysis_result', 'human_analysis_result', 'proposal_sent_date',
+        'client_decision', 'docusign_status', 'dossier_sent_date',
+        'bank_response_status', 'client_liquidation_date', 'commission_value',
+        'final_agreement_sent_date'
+    )
+    list_filter = (
+        'created_by', 'client', 'current_status', 'ia_analysis_result',
+        'human_analysis_result', 'client_decision', 'docusign_status',
+        'bank_response_status', 'created_at'
+    )
+    search_fields = ('title', 'description', 'client__email', 'created_by__email')
+    raw_id_fields = ('created_by', 'client',) # Permite buscar por ID de usuário
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
@@ -41,15 +53,13 @@ class DocumentAdmin(admin.ModelAdmin):
     search_fields = ('file_name', 'description', 'file_url')
     raw_id_fields = ('case', 'uploaded_by',)
 
-# ADICIONAR NOVO REGISTRO AQUI para ProcessMovement
 @admin.register(ProcessMovement)
 class ProcessMovementAdmin(admin.ModelAdmin):
-    list_display = ('case', 'actor', 'movement_type', 'timestamp', 'from_sector', 'to_sector', 'is_internal', 'associated_document_link')
+    list_display = ('case', 'actor', 'movement_type', 'timestamp', 'content', 'associated_document_link')
     list_filter = ('movement_type', 'timestamp', 'is_internal', 'case', 'actor')
-    search_fields = ('case__title', 'actor__email', 'content', 'from_sector', 'to_sector')
+    search_fields = ('case__title', 'actor__email', 'content')
     raw_id_fields = ('case', 'actor', 'associated_document',)
 
-    # Cria um link clicável para o documento associado no admin
     def associated_document_link(self, obj):
         if obj.associated_document:
             from django.utils.html import format_html

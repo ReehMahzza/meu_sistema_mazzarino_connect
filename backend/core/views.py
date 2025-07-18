@@ -1,4 +1,4 @@
-# Em backend/core/views.py
+# Em backend/core/views.py (VERSÃO FINAL E CORRIGIDA DE TODAS AS VIEWS ATÉ FASE 7)
 
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
@@ -26,10 +26,6 @@ class RegisterView(APIView):
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, *args, **kwargs):
-        print(f"🔍 Request headers: {request.headers}")
-        print(f"🔍 User: {request.user}")
-        print(f"🔍 Is authenticated: {request.user.is_authenticated}")
-        
         user = request.user
         return Response({
             "message": f"Bem-vindo ao Dashboard, {user.first_name}!",
@@ -42,26 +38,23 @@ class CaseListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Case.objects.filter(created_by=self.request.user).select_related('created_by', 'client')
+        return Case.objects.filter(created_by=self.request.user)
 
     def perform_create(self, serializer):
-        client_id = serializer.validated_data.pop('client_id')
-        try:
-            client = get_user_model().objects.get(id=client_id)
-        except get_user_model().DoesNotExist:
-            raise ValidationError("Cliente com o ID fornecido não existe.")
-
-        case = serializer.save(
-            created_by=self.request.user,
-            client=client
-        )
-
-        ProcessMovement.objects.create(
-            case=case,
-            actor=self.request.user,
-            movement_type='Criação',
-            content=f"Caso criado para o cliente {client.email} pelo funcionário {self.request.user.email}."
-        )
+        # GARANTIR QUE O USUÁRIO LOGADO SEJA DEFINIDO COMO created_by:
+        print(f"=== CRIANDO CASO ===")
+        print(f"Usuario logado: {self.request.user}")
+        print(f"Dados validados: {serializer.validated_data}")
+        
+        instance = serializer.save(created_by=self.request.user)
+        
+        print(f"=== CASO CRIADO ===")
+        print(f"ID: {instance.id}")
+        print(f"Título: {instance.title}")
+        print(f"Cliente: {instance.client}")
+        print(f"Criado por: {instance.created_by}")
+        
+        return instance
 
 class DocumentListCreateView(generics.ListCreateAPIView):
     serializer_class = DocumentSerializer
@@ -91,13 +84,13 @@ class DocumentListCreateView(generics.ListCreateAPIView):
             associated_document=document
         )
 
-class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = DocumentSerializer
+class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView): # Esta view é para detalhes de DOCUMENTOS
+    serializer_class = DocumentSerializer # Era CaseSerializer. Voltando para DocumentSerializer.
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'pk'
 
     def get_queryset(self):
-        return Document.objects.filter(uploaded_by=self.request.user).select_related('uploaded_by')
+        return Document.objects.filter(uploaded_by=self.request.user).select_related('uploaded_by') # Era Case.objects.all(). Revertendo.
 
 class ProcessMovementListCreateView(generics.ListCreateAPIView):
     serializer_class = ProcessMovementSerializer
@@ -192,10 +185,8 @@ class CaseAnalysisUpdateView(generics.UpdateAPIView):
 
         updated_instance.save()
 
+# Esta é a view para obter detalhes de um ÚNICO caso.
 class CaseDetailView(generics.RetrieveAPIView):
-    """
-    View para obter os detalhes de um caso específico.
-    """
     serializer_class = CaseSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = Case.objects.all()
@@ -278,15 +269,12 @@ class CaseNegotiationUpdateView(generics.UpdateAPIView):
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        # Guarda os valores antigos para comparação
         old_dossier_date = instance.dossier_sent_date
         old_bank_status = instance.bank_response_status
         old_counterproposal = instance.counterproposal_details
 
-        # Salva a instância com os novos dados
         updated_instance = serializer.save()
 
-        # Verifica o que mudou e cria os andamentos
         if updated_instance.dossier_sent_date != old_dossier_date:
             ProcessMovement.objects.create(
                 case=updated_instance,
@@ -315,10 +303,10 @@ class CaseNegotiationUpdateView(generics.UpdateAPIView):
 
         updated_instance.save() # Salva o status atualizado do caso
 
-# ADICIONAR NOVA VIEW AQUI (FASE 6)
+# ADICIONAR NOVA VIEW AQUI (FASE 6 - Formalização do Acordo)
 class CaseFormalizationView(generics.UpdateAPIView):
     """
-    View para atualizar os campos da fase de formalização do acordo.
+    View para atualizar os campos da formalização do acordo (Fase 6).
     Cria andamentos correspondentes para cada atualização.
     """
     serializer_class = CaseSerializer
@@ -327,41 +315,111 @@ class CaseFormalizationView(generics.UpdateAPIView):
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        # Guarda os valores antigos para comparação (APENAS OS CAMPOS DA FASE 6)
-        old_final_agreement_sent_date = instance.final_agreement_sent_date # Corrigido nome da variável
+        
+        # Capturar valores antigos para comparação
+        old_agreement_date = instance.final_agreement_sent_date
         old_docusign_status = instance.docusign_status
+
+        # Salvar as alterações
+        updated_instance = serializer.save()
+
+        # Criar andamentos baseados nas mudanças
+        if updated_instance.final_agreement_sent_date != old_agreement_date and updated_instance.final_agreement_sent_date is not None:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Acordo Final Enviado',
+                content=f'Termo de Acordo Final enviado para assinatura em {updated_instance.final_agreement_sent_date.strftime("%d/%m/%Y")}.'
+            )
+            updated_instance.current_status = 'Aguardando Assinatura do Acordo'
+
+        if updated_instance.docusign_status != old_docusign_status:
+            if updated_instance.docusign_status == 'Assinado':
+                ProcessMovement.objects.create(
+                    case=updated_instance,
+                    actor=self.request.user,
+                    movement_type='Acordo Assinado',
+                    content='Termo de Acordo Final assinado digitalmente via DocuSign.'
+                )
+                updated_instance.current_status = 'Acordo Formalizado'
+            elif updated_instance.docusign_status == 'Recusado':
+                ProcessMovement.objects.create(
+                    case=updated_instance,
+                    actor=self.request.user,
+                    movement_type='Acordo Recusado',
+                    content='Assinatura do Termo de Acordo Final foi recusada pelo cliente.'
+                )
+                updated_instance.current_status = 'Acordo Recusado'
+            elif updated_instance.docusign_status == 'Enviado':
+                ProcessMovement.objects.create(
+                    case=updated_instance,
+                    actor=self.request.user,
+                    movement_type='DocuSign Enviado',
+                    content='Documento enviado para assinatura digital via DocuSign.'
+                )
+
+        # Salvar o status atualizado
+        updated_instance.save()
+
+# ADICIONAR NOVA VIEW AQUI (FASE 7 - Liquidação Financeira)
+class CaseLiquidationView(generics.UpdateAPIView):
+    """
+    View para atualizar os campos da fase de liquidação financeira.
+    Cria andamentos correspondentes para cada atualização.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        # Guarda os valores antigos para comparação
+        old_payment_status = instance.bank_payment_status
+        old_commission = instance.commission_value
+        old_liquidation_date = instance.client_liquidation_date
 
         # Salva a instância com os novos dados
         updated_instance = serializer.save()
 
         # Verifica o que mudou e cria os andamentos
-        if updated_instance.final_agreement_sent_date != old_final_agreement_sent_date: # Corrigido nome da variável
+        if updated_instance.bank_payment_status != old_payment_status and updated_instance.bank_payment_status == 'Pago pelo Banco':
             ProcessMovement.objects.create(
                 case=updated_instance,
                 actor=self.request.user,
-                movement_type='Termo de Acordo Enviado',
-                content=f'Termo de Acordo Final enviado para assinatura em {updated_instance.final_agreement_sent_date.strftime("%d/%m/%Y") if updated_instance.final_agreement_sent_date else "data indefinida"}.'
+                movement_type='Pagamento Banco Recebido',
+                content='Pagamento da instituição financeira foi recebido.'
             )
-            updated_instance.current_status = 'Acordo Enviado para Assinatura'
+            updated_instance.current_status = 'Aguardando Cálculo de Comissão'
 
-        if updated_instance.docusign_status != old_docusign_status:
-            if updated_instance.docusign_status == 'Assinado':
-                movement_type = 'Acordo Assinado'
-                content = 'Termo de Acordo Final assinado via DocuSign.'
-                updated_instance.current_status = 'Acordo Formalizado'
-            elif updated_instance.docusign_status == 'Recusado':
-                movement_type = 'Acordo Recusado'
-                content = 'Assinatura do Termo de Acordo Final foi recusada.'
-                updated_instance.current_status = 'Acordo Recusado na Formalização'
-            else: # Para 'Enviado' ou 'Não Enviado'
-                movement_type = 'Status DocuSign Atualizado'
-                content = f'Status DocuSign do acordo final atualizado para: "{updated_instance.docusign_status}".'
-
+        if updated_instance.commission_value is not None and updated_instance.commission_value != old_commission:
             ProcessMovement.objects.create(
                 case=updated_instance,
                 actor=self.request.user,
-                movement_type=movement_type,
-                content=content
+                movement_type='Comissão Calculada',
+                content=f'Comissão da Mazzarino Corp calculada: R$ {updated_instance.commission_value}.'
             )
+            updated_instance.current_status = 'Comissão Retida - Aguardando Liquidação'
+
+        if updated_instance.client_liquidation_date is not None and updated_instance.client_liquidation_date != old_liquidation_date:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Liquidação Cliente',
+                content=f'Valor líquido repassado ao cliente em {updated_instance.client_liquidation_date.strftime("%d/%m/%Y")}.'
+            )
+            updated_instance.current_status = 'Caso Liquidado e Finalizado'
 
         updated_instance.save() # Salva o status atualizado do caso
+
+class UserListView(generics.ListAPIView):
+    """
+    View para listar usuários (usado para busca por email no NewCasePage)
+    """
+    serializer_class = ActorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        email = self.request.query_params.get('email')
+        if email:
+            return CustomUser.objects.filter(email=email)
+        return CustomUser.objects.all()[:10]  # Limitar resultado para evitar sobrecarga

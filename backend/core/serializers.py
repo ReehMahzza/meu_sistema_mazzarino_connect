@@ -1,12 +1,10 @@
-# Em backend/core/serializers.py
+# Em backend/core/serializers.py (VERSÃO FINAL E CORRIGIDA DE TODAS AS SERIALIZERS ATÉ FASE 7)
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Case, Document, ProcessMovement
+from .models import Case, Document, ProcessMovement, CustomUser # Importar CustomUser diretamente
 
-CustomUser = get_user_model()
-
-# Serializer simplificado para informações do ator (usuário)
+# ActorSerializer (para exibir detalhes do usuário)
 class ActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
@@ -19,12 +17,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        # MODIFICAR AQUI: Remover a obrigatoriedade dos nomes
         fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
         extra_kwargs = {
             'first_name': {'required': False},
             'last_name': {'required': False},
-            'username': {'required': False}, # Username pode ser gerado
+            'username': {'required': False},
         }
         read_only_fields = ['id']
 
@@ -32,7 +29,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "As senhas não coincidem."})
 
-        # ADICIONADO: Gerar um username único a partir do email se não for fornecido
         if not attrs.get('username') and attrs.get('email'):
             email = attrs['email']
             base_username = email.split('@')[0]
@@ -42,16 +38,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 username = f"{base_username}{counter}"
                 counter += 1
             attrs['username'] = username
-        elif not attrs.get('username'): 
-            # Este caso é mais para quando username é REQUIRED_FIELDS no modelo, mas não no serializer.
-            # Como USERNAME_FIELD é email, o Django cuida se username não for explicitamente setado.
-            pass # Nenhuma ação necessária aqui.
 
         return attrs
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        # A criação do usuário deve usar create_user para hashear a senha
         user = CustomUser.objects.create_user(**validated_data)
         return user
 
@@ -87,31 +78,38 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector',
             'to_sector', 'content', 'associated_document', 'associated_document_id', 'is_internal', 'notes',
-            'request_details' # <-- ADICIONAR CAMPO AQUI!
+            'request_details' # Campo da Fase 2
         ]
         read_only_fields = ['actor', 'timestamp', 'associated_document']
-        # Torna o campo opcional na entrada da API
-        extra_kwargs = {
-            'request_details': {'required': False} # <-- ADICIONAR ESTE extra_kwargs AQUI!
-        }
 
-# MODIFICAR O CASE SERIALIZER EXISTENTE
+
+# REESCRITA COMPLETA E CORRIGIDA DO CASE SERIALIZER (COM TODOS OS CAMPOS ATÉ FASE 7)
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
-    created_by = ActorSerializer(read_only=True) # created_by agora é o objeto Actor
-    client = ActorSerializer(read_only=True) # client agora é o objeto Actor
-    client_id = serializers.IntegerField(write_only=True, required=False)
+    created_by = ActorSerializer(read_only=True)
 
+    # Campo para escrita do cliente (ID)
+    client = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.all(), write_only=True) 
+    # Campo para leitura detalhada do cliente (objeto serializado)
+    client_detail = ActorSerializer(source='client', read_only=True) 
 
     class Meta:
         model = Case
-        # ADICIONAR NOVOS CAMPOS AQUI
         fields = [
             'id', 'title', 'description', 'created_by', 'created_at',
-            'current_status', 'movements', 'client', 'client_id',
-            'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
-            'proposal_sent_date', 'client_decision', 'docusign_status',
-            'dossier_sent_date', 'bank_response_status', 'counterproposal_details',
-            'final_agreement_sent_date' # <-- ADICIONE ESTA LINHA AQUI!
+            'current_status', 'movements', 
+            'client', # Campo de escrita (recebe o ID)
+            'client_detail', # Campo de leitura (retorna o objeto Actor)
+            'ia_analysis_result', 'human_analysis_result', 'technical_report_content', # Fase 3
+            'proposal_sent_date', 'client_decision', 'docusign_status', # Fase 4
+            'dossier_sent_date', 'bank_response_status', 'counterproposal_details', # Fase 5
+            'final_agreement_sent_date', # Fase 6
+            'bank_payment_status', 'client_liquidation_date', 'commission_value' # Fase 7
         ]
-        read_only_fields = ['created_at', 'current_status', 'movements']
+        read_only_fields = ['created_at', 'current_status', 'movements', 'client_detail'] # client_detail é apenas para leitura
+
+    def create(self, validated_data):
+        # O PrimaryKeyRelatedField já converte o ID para o objeto CustomUser,
+        # então 'client' já estará no validated_data como o objeto CustomUser.
+        return super().create(validated_data)
+        

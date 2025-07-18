@@ -61,8 +61,9 @@ export const AuthProvider = ({ children }) => {
     // Interceptor para adicionar o token de autenticação nos headers
     axiosInstance.interceptors.request.use(
         (config) => {
-            if (authTokens && authTokens.access) {
-                config.headers.Authorization = `Bearer ${authTokens.access}`;
+            const tokens = JSON.parse(localStorage.getItem('authTokens'));
+            if (tokens && tokens.access) {
+                config.headers.Authorization = `Bearer ${tokens.access}`;
             }
             return config;
         },
