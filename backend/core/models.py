@@ -58,13 +58,41 @@ class Case(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
-
-    # ADICIONAR CAMPO AQUI: Link para o cliente
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT, # Evita apagar um cliente se ele tiver casos
+        on_delete=models.PROTECT,
         related_name='client_cases',
         verbose_name="Cliente Associado"
+    )
+
+    # ADICIONAR NOVOS CAMPOS AQUI (logo abaixo do campo 'client')
+    IA_ANALYSIS_CHOICES = [
+        ('Aguardando Análise', 'Aguardando Análise'),
+        ('Potencialmente Abusivo', 'Potencialmente Abusivo'),
+        ('Não Abusivo', 'Não Abusivo'),
+    ]
+    HUMAN_ANALYSIS_CHOICES = [
+        ('Aguardando Análise', 'Aguardando Análise'),
+        ('Viável', 'Viável'),
+        ('Não Viável', 'Não Viável'),
+    ]
+
+    ia_analysis_result = models.CharField(
+        max_length=50,
+        choices=IA_ANALYSIS_CHOICES,
+        default='Aguardando Análise',
+        verbose_name="Resultado Análise IA"
+    )
+    human_analysis_result = models.CharField(
+        max_length=50,
+        choices=HUMAN_ANALYSIS_CHOICES,
+        default='Aguardando Análise',
+        verbose_name="Resultado Análise Humana"
+    )
+    technical_report_content = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Conteúdo do Parecer Técnico"
     )
 
     def __str__(self):

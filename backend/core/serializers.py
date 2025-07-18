@@ -98,14 +98,17 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
 # MODIFICAR O CASE SERIALIZER EXISTENTE
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
-    created_by = ActorSerializer(read_only=True)
-    # ADICIONAR AQUI: Serializer para o campo 'client'
-    client = ActorSerializer(read_only=True) # Para exibir o objeto completo do cliente no GET
+    created_by = ActorSerializer(read_only=True) # created_by agora é o objeto Actor
+    client = ActorSerializer(read_only=True) # client agora é o objeto Actor
+    client_id = serializers.IntegerField(write_only=True, required=False)
 
-    # ADICIONAR AQUI: Campo write_only para receber o ID do cliente no POST
-    client_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = Case
-        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'current_status', 'movements', 'client', 'client_id']
+        # ADICIONAR NOVOS CAMPOS AQUI
+        fields = [
+            'id', 'title', 'description', 'created_by', 'created_at',
+            'current_status', 'movements', 'client', 'client_id',
+            'ia_analysis_result', 'human_analysis_result', 'technical_report_content' # <-- ADICIONE ESTAS TRÊS LINHAS AQUI!
+        ]
         read_only_fields = ['created_at', 'current_status', 'movements']

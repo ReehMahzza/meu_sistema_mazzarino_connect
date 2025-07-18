@@ -1,6 +1,6 @@
 /*
 ================================================================================
-ARQUIVO: frontend/src/App.jsx (MODIFICADO para Nova Rota de Cliente/Caso)
+ARQUIVO: frontend/src/App.jsx (MODIFICADO para Nova Rota de Análise de Casos)
 ================================================================================
 */
 import React from 'react';
@@ -10,9 +10,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DocumentsPage from './pages/DocumentsPage';
-import NewCasePage from './pages/NewCasePage'; // ADICIONADO
-import RequestSearchServicePage from './pages/RequestSearchServicePage'; // ADICIONADO
-
+import NewCasePage from './pages/NewCasePage';
+import RequestSearchServicePage from './pages/RequestSearchServicePage';
+import CaseAnalysisPage from './pages/CaseAnalysisPage'; // ADICIONADO
 
 function App() {
   return (
@@ -25,8 +25,9 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/new-case" element={<NewCasePage />} />
-            {/* ADICIONADA: Nova rota para solicitar serviço */}
             <Route path="/request-search-service" element={<RequestSearchServicePage />} />
+            {/* ADICIONADA: Nova rota para análise de casos */}
+            <Route path="/case-analysis" element={<CaseAnalysisPage />} /> {/* <-- NOVA ROTA AQUI */}
           </Route>
         </Routes>
       </AuthProvider>

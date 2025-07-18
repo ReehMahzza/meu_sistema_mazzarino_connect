@@ -152,3 +152,56 @@ class RequestContractSearchView(APIView):
 
         serializer = ProcessMovementSerializer(movement)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    # ADICIONAR NOVA VIEW AQUI (no final do arquivo)
+class CaseAnalysisUpdateView(generics.UpdateAPIView):
+    """
+    View para atualizar os campos de análise e parecer técnico de um caso.
+    Cria andamentos correspondentes para cada atualização.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all() # Permite buscar o caso por PK na URL
+
+    def perform_update(self, serializer):
+        instance = self.get_object() # Pega o objeto Case atual
+        # Guarda os valores antigos para comparação
+        old_ia_result = instance.ia_analysis_result
+        old_human_result = instance.human_analysis_result
+        old_report_content = instance.technical_report_content
+
+        # Salva a instância com os novos dados (isso atualiza o objeto no banco)
+        updated_instance = serializer.save()
+
+        # Verifica o que mudou e cria os andamentos
+        if updated_instance.ia_analysis_result != old_ia_result:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Análise IA',
+                content=f'Resultado da análise preliminar por IA atualizado para: "{updated_instance.ia_analysis_result}".'
+            )
+
+        if updated_instance.human_analysis_result != old_human_result or updated_instance.technical_report_content != old_report_content:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Emissão Parecer Técnico',
+                content='Parecer técnico emitido/atualizado.'
+            )
+
+        # Atualiza o status do caso (current_status) com base nos resultados
+        if updated_instance.human_analysis_result != 'Aguardando Análise':
+            updated_instance.current_status = f"Análise Concluída: {updated_instance.human_analysis_result}"
+        elif updated_instance.ia_analysis_result != 'Aguardando Análise':
+            updated_instance.current_status = f"Análise IA: {updated_instance.ia_analysis_result}"
+
+        updated_instance.save() # Salva o status atualizado do caso
+        # ADICIONAR NOVA VIEW AQUI (no final do arquivo)
+class CaseDetailView(generics.RetrieveAPIView): # RetrieveAPIView para obter um único objeto
+    """
+    View para obter os detalhes de um caso específico.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all() # Permite buscar qualquer caso
+    lookup_field = 'pk' # Diz para o DRF usar 'pk' (chave primária) da URL
