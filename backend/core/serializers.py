@@ -19,20 +19,39 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'username', 'first_name', 'last_name', 'password', 'password2', 'cpf', 'telefone', 'setor_ou_equipe')
+        # MODIFICAR AQUI: Remover a obrigatoriedade dos nomes
+        fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
         extra_kwargs = {
-            'first_name': {'required': True},
-            'last_name': {'required': True},
-            'username': {'required': True},
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'username': {'required': False}, # Username pode ser gerado
         }
+        read_only_fields = ['id']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "As senhas não coincidem."})
+
+        # ADICIONADO: Gerar um username único a partir do email se não for fornecido
+        if not attrs.get('username') and attrs.get('email'):
+            email = attrs['email']
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while CustomUser.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            attrs['username'] = username
+        elif not attrs.get('username'): 
+            # Este caso é mais para quando username é REQUIRED_FIELDS no modelo, mas não no serializer.
+            # Como USERNAME_FIELD é email, o Django cuida se username não for explicitamente setado.
+            pass # Nenhuma ação necessária aqui.
+
         return attrs
 
     def create(self, validated_data):
         validated_data.pop('password2')
+        # A criação do usuário deve usar create_user para hashear a senha
         user = CustomUser.objects.create_user(**validated_data)
         return user
 
@@ -59,8 +78,6 @@ class DocumentMovementSerializer(serializers.ModelSerializer):
 class ProcessMovementSerializer(serializers.ModelSerializer):
     actor = ActorSerializer(read_only=True)
     associated_document = DocumentMovementSerializer(read_only=True)
-
-    # Campo para receber APENAS o ID do documento no POST
     associated_document_id = serializers.PrimaryKeyRelatedField(
         queryset=Document.objects.all(), source='associated_document', write_only=True, required=False, allow_null=True
     )
@@ -74,14 +91,17 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
         read_only_fields = ['actor', 'timestamp', 'associated_document']
 
 
-# CORREÇÃO CRÍTICA FINAL DO CASE SERIALIZER (Com ActorSerializer para created_by)
+# MODIFICAR O CASE SERIALIZER EXISTENTE
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
-    # created_by agora serializa o objeto Actor (para GET), e é PrimaryKeyRelatedField para POST
-    created_by = ActorSerializer(read_only=True) 
+    created_by = ActorSerializer(read_only=True)
+    # ADICIONAR AQUI: Serializer para o campo 'client'
+    client = ActorSerializer(read_only=True) # Para exibir o objeto completo do cliente no GET
+
+    # ADICIONAR AQUI: Campo write_only para receber o ID do cliente no POST
+    client_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = Case
-        # Removido 'created_by_full_name' dos fields, pois 'created_by' é o campo serializado
-        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'current_status', 'movements']
-        read_only_fields = ['created_at', 'current_status', 'movements'] # 'created_by' não precisa estar aqui, pois é read_only como ActorSerializer
+        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'current_status', 'movements', 'client', 'client_id']
+        read_only_fields = ['created_at', 'current_status', 'movements']

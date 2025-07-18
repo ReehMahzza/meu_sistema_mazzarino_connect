@@ -10,15 +10,16 @@ from .models import Case, Document, ProcessMovement
 CustomUser = get_user_model()
 
 class RegisterView(APIView):
-    # MODIFICAR AQUI: Retornar dados do usuário criado
+    # MODIFICADO: Apenas funcionários logados podem registrar novos clientes
+    permission_classes = [permissions.IsAuthenticated] # <-- MUDAR ESTA LINHA
+
     def post(self, request, *args, **kwargs):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            # Retorna os dados do usuário para que o frontend possa usá-los
             return Response({
                 "message": "Usuário registrado com sucesso!",
-                "user": ActorSerializer(user).data # Usar ActorSerializer para formatar a saída do usuário
+                "user": ActorSerializer(user).data
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -42,12 +43,15 @@ class CaseListCreateView(generics.ListCreateAPIView):
 
     # MODIFICAR AQUI: Associar o caso ao cliente e ao funcionário
     def perform_create(self, serializer):
-        client_id = serializer.validated_data.pop('client_id') # Pega o client_id do serializer
-        client = get_user_model().objects.get(id=client_id) # Busca o objeto Cliente
+        client_id = self.request.data.get('client_id')
+        try:
+            client = get_user_model().objects.get(id=client_id)
+        except get_user_model().DoesNotExist:
+            raise serializers.ValidationError("Cliente com o ID fornecido não existe.")
 
         case = serializer.save(
             created_by=self.request.user, # O funcionário logado
-            client=client # O novo cliente associado
+            client=client # O novo cliente criado
         )
 
         # Cria o primeiro andamento

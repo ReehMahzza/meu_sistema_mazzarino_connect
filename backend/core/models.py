@@ -5,37 +5,47 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
 class CustomUser(AbstractUser):
+    # MODIFICAR AQUI: Tornar campos de nome opcionais
+    first_name = models.CharField(('first name'), max_length=150, blank=True, null=True)
+    last_name = models.CharField(('last name'), max_length=150, blank=True, null=True)
+
     email = models.EmailField(unique=True)
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True, verbose_name="CPF")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
 
-    # MODIFICAR AQUI: Tornar campos de nome e username opcionais
-    username = models.CharField(
-        ('username'),
-        max_length=150,
-        unique=True, # Mantenha unique se o username será gerado ou será único
-        help_text=('Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'),
-        validators=[AbstractUser.username_validator],
-        error_messages={
-            'unique': ("A user with that username already exists."),
-        },
-        null=True, blank=True # <-- ADICIONADO: Torna opcional
-    )
-    first_name = models.CharField(('first name'), max_length=150, blank=True, null=True) # <-- ADICIONADO: Torna opcional
-    last_name = models.CharField(('last name'), max_length=150, blank=True, null=True) # <-- ADICIONADO: Torna opcional
-
-    # Dizemos ao Django que o campo de login agora será o 'email'.
     USERNAME_FIELD = 'email'
-
-    # Campos necessários ao criar um superusuário pela linha de comando.
-    # Como username, first_name, last_name são opcionais para o modelo, ajustamos aqui.
-    # Se email é USERNAME_FIELD, ele já é implicitamente requerido.
-    REQUIRED_FIELDS = [] # <-- MODIFICADO: Deixe vazio para não exigir username/nomes ao criar superusuário se eles forem opcionais no modelo.
+    # O username ainda é necessário para o Django, mas o tornaremos não obrigatório na API
+    # e o geraremos automaticamente a partir do e-mail.
+    REQUIRED_FIELDS = ['username'] # <-- MODIFICADO
 
     def __str__(self):
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
         return self.email
 
+class Case(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Título do Caso")
+    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_cases', # Renomeado para clareza
+        verbose_name="Criado por (Funcionário)"
+    )
+
+    # ADICIONAR CAMPO AQUI: Link para o cliente
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT, # Evita apagar um cliente se ele tiver casos
+        related_name='client_cases',
+        verbose_name="Cliente Associado"
+    )
+    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
 
 class Case(models.Model):
     title = models.CharField(max_length=255, verbose_name="Título do Caso")
