@@ -261,3 +261,51 @@ class CaseProposalContractView(generics.UpdateAPIView):
                 updated_instance.current_status = f'Contratação: {updated_instance.docusign_status}'
 
         updated_instance.save() # Salva o status atualizado do caso
+        # ADICIONAR NOVA VIEW AQUI (FASE 5)
+class CaseNegotiationUpdateView(generics.UpdateAPIView):
+    """
+    View para atualizar os campos da negociação com o banco.
+    Cria andamentos correspondentes para cada atualização.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        # Guarda os valores antigos para comparação
+        old_dossier_date = instance.dossier_sent_date
+        old_bank_status = instance.bank_response_status
+        old_counterproposal = instance.counterproposal_details
+
+        # Salva a instância com os novos dados
+        updated_instance = serializer.save()
+
+        # Verifica o que mudou e cria os andamentos
+        if updated_instance.dossier_sent_date != old_dossier_date:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Dossiê Enviado',
+                content=f'Dossiê de renegociação enviado ao banco em {updated_instance.dossier_sent_date.strftime("%d/%m/%Y")}.'
+            )
+            updated_instance.current_status = 'Aguardando Resposta do Banco'
+
+        if updated_instance.bank_response_status != old_bank_status:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Resposta do Banco',
+                content=f'Banco respondeu com status: "{updated_instance.bank_response_status}".'
+            )
+            updated_instance.current_status = f'Negociação: {updated_instance.bank_response_status}'
+
+        if updated_instance.bank_response_status == 'Contraproposta' and updated_instance.counterproposal_details != old_counterproposal:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Contraproposta Recebida',
+                content=f'Contraproposta recebida do banco. Detalhes: {updated_instance.counterproposal_details}'
+            )
+
+        updated_instance.save() # Salva o status atualizado do caso

@@ -1,6 +1,6 @@
 /*
 ================================================================================
-ARQUIVO: frontend/src/App.jsx (MODIFICADO para Nova Rota de Proposta e Contratação)
+ARQUIVO: frontend/src/App.jsx (MODIFICADO)
 ================================================================================
 */
 import React from 'react';
@@ -13,7 +13,8 @@ import DocumentsPage from './pages/DocumentsPage';
 import NewCasePage from './pages/NewCasePage';
 import RequestSearchServicePage from './pages/RequestSearchServicePage';
 import CaseAnalysisPage from './pages/CaseAnalysisPage';
-import ProposalContractPage from './pages/ProposalContractPage'; // ADICIONADO
+import ProposalContractPage from './pages/ProposalContractPage';
+import BankNegotiationPage from './pages/BankNegotiationPage'; // ADICIONADO
 
 function App() {
   return (
@@ -28,8 +29,9 @@ function App() {
             <Route path="/new-case" element={<NewCasePage />} />
             <Route path="/request-search-service" element={<RequestSearchServicePage />} />
             <Route path="/case-analysis" element={<CaseAnalysisPage />} />
-            {/* ADICIONADA: Nova rota para proposta e contratação */}
-            <Route path="/proposal-contract" element={<ProposalContractPage />} /> {/* <-- NOVA ROTA AQUI */}
+            <Route path="/proposal-contract" element={<ProposalContractPage />} />
+            {/* ADICIONADA: Nova rota para negociação com o banco */}
+            <Route path="/bank-negotiation" element={<BankNegotiationPage />} />
           </Route>
         </Routes>
       </AuthProvider>

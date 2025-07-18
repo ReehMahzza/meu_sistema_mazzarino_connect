@@ -11,7 +11,8 @@ from .views import (
     RequestContractSearchView,
     CaseAnalysisUpdateView,
     CaseDetailView,
-    CaseProposalContractView # <-- ADICIONE ESTE IMPORT AQUI!
+    CaseProposalContractView,
+    CaseNegotiationUpdateView # <-- ADICIONE ESTE IMPORT AQUI!
 )
 
 urlpatterns = [
@@ -33,6 +34,9 @@ urlpatterns = [
     # Rota para Análise e Parecer Técnico (Update)
     path('cases/<int:pk>/analyze/', CaseAnalysisUpdateView.as_view(), name='case-analysis-update'),
 
-    # ADICIONAR NOVA ROTA AQUI para Proposta e Contratação
-    path('cases/<int:pk>/proposal-contract/', CaseProposalContractView.as_view(), name='case-proposal-contract-update'), # <-- ADICIONE ESTA LINHA AQUI!
+    # Rota para Proposta e Contratação (Update)
+    path('cases/<int:pk>/proposal-contract/', CaseProposalContractView.as_view(), name='case-proposal-contract-update'),
+
+    # ADICIONAR NOVA ROTA AQUI (FASE 5)
+    path('cases/<int:pk>/negotiate/', CaseNegotiationUpdateView.as_view(), name='case-negotiation-update'), # <-- ADICIONE ESTA LINHA AQUI!
 ]

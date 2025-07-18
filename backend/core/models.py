@@ -99,7 +99,31 @@ class Case(models.Model):
         default='Não Enviado',
         verbose_name="Status DocuSign"
     )
+# ADICIONAR NOVOS CAMPOS AQUI (FASE 5)
+    BANK_RESPONSE_CHOICES = [
+        ('Aguardando Resposta', 'Aguardando Resposta'),
+        ('Aceita', 'Aceita'),
+        ('Negada', 'Negada'),
+        ('Reuniao Solicitada', 'Reunião Solicitada'),
+        ('Contraproposta', 'Contraproposta'),
+    ]
 
+    dossier_sent_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Data de Envio do Dossiê ao Banco"
+    )
+    bank_response_status = models.CharField(
+        max_length=50,
+        choices=BANK_RESPONSE_CHOICES,
+        default='Aguardando Resposta',
+        verbose_name="Resposta do Banco"
+    )
+    counterproposal_details = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Detalhes da Contraproposta"
+    )
 
     def __str__(self):
         return self.title
