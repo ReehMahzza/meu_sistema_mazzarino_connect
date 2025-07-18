@@ -30,29 +30,6 @@ class Case(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='created_cases', # Renomeado para clareza
-        verbose_name="Criado por (Funcionário)"
-    )
-
-    # ADICIONAR CAMPO AQUI: Link para o cliente
-    client = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT, # Evita apagar um cliente se ele tiver casos
-        related_name='client_cases',
-        verbose_name="Cliente Associado"
-    )
-    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.title
-
-class Case(models.Model):
-    title = models.CharField(max_length=255, verbose_name="Título do Caso")
-    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
         related_name='created_cases',
         verbose_name="Criado por (Funcionário)"
     )
@@ -64,8 +41,6 @@ class Case(models.Model):
         related_name='client_cases',
         verbose_name="Cliente Associado"
     )
-
-    # ADICIONAR NOVOS CAMPOS AQUI (logo abaixo do campo 'client')
     IA_ANALYSIS_CHOICES = [
         ('Aguardando Análise', 'Aguardando Análise'),
         ('Potencialmente Abusivo', 'Potencialmente Abusivo'),
@@ -76,7 +51,6 @@ class Case(models.Model):
         ('Viável', 'Viável'),
         ('Não Viável', 'Não Viável'),
     ]
-
     ia_analysis_result = models.CharField(
         max_length=50,
         choices=IA_ANALYSIS_CHOICES,
@@ -94,6 +68,38 @@ class Case(models.Model):
         null=True,
         verbose_name="Conteúdo do Parecer Técnico"
     )
+
+    # ADICIONAR NOVOS CAMPOS AQUI (logo abaixo de technical_report_content)
+    PROPOSAL_DECISION_CHOICES = [
+        ('Aguardando Decisão', 'Aguardando Decisão'),
+        ('Aceita', 'Aceita'),
+        ('Rejeita', 'Rejeita'),
+    ]
+    DOCUSIGN_STATUS_CHOICES = [
+        ('Não Enviado', 'Não Enviado'),
+        ('Enviado', 'Enviado'),
+        ('Assinado', 'Assinado'),
+        ('Recusado', 'Recusado'),
+    ]
+
+    proposal_sent_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Data de Envio da Proposta"
+    )
+    client_decision = models.CharField(
+        max_length=50,
+        choices=PROPOSAL_DECISION_CHOICES,
+        default='Aguardando Decisão',
+        verbose_name="Decisão do Cliente"
+    )
+    docusign_status = models.CharField(
+        max_length=50,
+        choices=DOCUSIGN_STATUS_CHOICES,
+        default='Não Enviado',
+        verbose_name="Status DocuSign"
+    )
+
 
     def __str__(self):
         return self.title

@@ -94,12 +94,11 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'request_details': {'required': False} # <-- ADICIONAR ESTE extra_kwargs AQUI!
         }
-
 # MODIFICAR O CASE SERIALIZER EXISTENTE
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
-    created_by = ActorSerializer(read_only=True) # created_by agora é o objeto Actor
-    client = ActorSerializer(read_only=True) # client agora é o objeto Actor
+    created_by = ActorSerializer(read_only=True)
+    client = ActorSerializer(read_only=True)
     client_id = serializers.IntegerField(write_only=True, required=False)
 
 
@@ -109,6 +108,7 @@ class CaseSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'created_by', 'created_at',
             'current_status', 'movements', 'client', 'client_id',
-            'ia_analysis_result', 'human_analysis_result', 'technical_report_content' # <-- ADICIONE ESTAS TRÊS LINHAS AQUI!
+            'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
+            'proposal_sent_date', 'client_decision', 'docusign_status' # <-- ADICIONE ESTAS TRÊS LINHAS AQUI!
         ]
         read_only_fields = ['created_at', 'current_status', 'movements']

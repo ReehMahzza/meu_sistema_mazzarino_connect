@@ -205,3 +205,59 @@ class CaseDetailView(generics.RetrieveAPIView): # RetrieveAPIView para obter um 
     permission_classes = [permissions.IsAuthenticated]
     queryset = Case.objects.all() # Permite buscar qualquer caso
     lookup_field = 'pk' # Diz para o DRF usar 'pk' (chave primária) da URL
+
+class CaseProposalContractView(generics.UpdateAPIView):
+    """
+    View para atualizar os campos de proposta e contratação de um caso.
+    Cria andamentos correspondentes para cada atualização.
+    """
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Case.objects.all() # Permite buscar o caso por PK na URL
+
+    def perform_update(self, serializer):
+        instance = self.get_object() # Pega o objeto Case atual
+        # Guarda os valores antigos para comparação
+        old_proposal_date = instance.proposal_sent_date
+        old_client_decision = instance.client_decision
+        old_docusign_status = instance.docusign_status
+
+        # Salva a instância com os novos dados (isso atualiza o objeto no banco)
+        updated_instance = serializer.save()
+
+        # Verifica o que mudou e cria os andamentos
+        if updated_instance.proposal_sent_date != old_proposal_date:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type='Proposta Enviada',
+                content=f'Proposta de renegociação enviada ao cliente em {updated_instance.proposal_sent_date.strftime("%d/%m/%Y")}.'
+            )
+            updated_instance.current_status = 'Aguardando Decisão do Cliente' # Atualiza status do caso
+
+        if updated_instance.client_decision != old_client_decision:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type=f'Proposta {updated_instance.client_decision}',
+                content=f'Cliente {updated_instance.client_decision.lower()} a proposta de renegociação.'
+            )
+            if updated_instance.client_decision == 'Aceita':
+                updated_instance.current_status = 'Proposta Aceita - Aguardando Contratação'
+            else:
+                updated_instance.current_status = 'Proposta Rejeitada'
+
+        # Verifica se o status do DocuSign mudou
+        if updated_instance.docusign_status != old_docusign_status:
+            ProcessMovement.objects.create(
+                case=updated_instance,
+                actor=self.request.user,
+                movement_type=f'DocuSign {updated_instance.docusign_status}',
+                content=f'Status da assinatura eletrônica atualizado para: "{updated_instance.docusign_status}".'
+            )
+            if updated_instance.docusign_status == 'Assinado':
+                updated_instance.current_status = 'Contratado'
+            else:
+                updated_instance.current_status = f'Contratação: {updated_instance.docusign_status}'
+
+        updated_instance.save() # Salva o status atualizado do caso
