@@ -1,5 +1,3 @@
-# Em backend/core/models.py (VERSÃO FINAL E CORRIGIDA DE TODAS AS MODELS ATÉ FASE 7)
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
@@ -7,9 +5,8 @@ from django.conf import settings
 class CustomUser(AbstractUser):
     first_name = models.CharField(('first name'), max_length=150, blank=True, null=True)
     last_name = models.CharField(('last name'), max_length=150, blank=True, null=True)
-
+    
     email = models.EmailField(unique=True)
-    # CPF e Telefone são null=True, blank=True (opcionais)
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True, verbose_name="CPF")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
@@ -130,7 +127,7 @@ class Case(models.Model):
         null=True,
         verbose_name="Data de Envio do Acordo Final"
     )
-
+    
     # Fase 7: Liquidação Financeira
     BANK_PAYMENT_CHOICES = [
         ('Aguardando Pagamento Banco', 'Aguardando Pagamento Banco'),
@@ -156,11 +153,12 @@ class Case(models.Model):
         blank=True,
         verbose_name="Valor da Comissão"
     )
-    # ADICIONAR NOVOS CAMPOS AQUI (FASE 8)
+
+    # Fase 8: Encerramento e Arquivamento
     completion_date = models.DateField(
-         blank=True,
-         null=True,
-         verbose_name="Data de Conclusão do Caso"
+        blank=True,
+        null=True,
+        verbose_name="Data de Conclusão do Caso"
     )
     final_communication_sent = models.BooleanField(
         default=False,
@@ -169,7 +167,8 @@ class Case(models.Model):
     survey_sent = models.BooleanField(
         default=False,
         verbose_name="Pesquisa de Satisfação Enviada"
-    )    
+    )
+
 
     def __str__(self):
         return self.title
@@ -223,4 +222,4 @@ class ProcessMovement(models.Model):
 
     def __str__(self):
         actor_name = self.actor.get_full_name() if self.actor and self.actor.first_name else (self.actor.email if self.actor else 'N/A')
-        return f"Andamento em '{self.case.title}' por {actor_name} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
+        return f"Andamento de {actor_name} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
