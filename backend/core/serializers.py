@@ -49,6 +49,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class DocumentSerializer(serializers.ModelSerializer):
     uploaded_by = ActorSerializer(read_only=True)
     case_title = serializers.CharField(source='case.title', read_only=True)
+    # ADICIONADO: Campo 'case' como write_only para ser aceito no payload
+    case = serializers.PrimaryKeyRelatedField(queryset=Case.objects.all(), write_only=True) # <-- ADICIONADO AQUI!
 
     class Meta:
         model = Document
@@ -67,7 +69,7 @@ class DocumentMovementSerializer(serializers.ModelSerializer):
 
 
 class ProcessMovementSerializer(serializers.ModelSerializer):
-    actor = ActorSerializer(read_only=True)
+    actor = ActorSerializer(read_only=True) # Este é para LEITURA
     associated_document = DocumentMovementSerializer(read_only=True)
     associated_document_id = serializers.PrimaryKeyRelatedField(
         queryset=Document.objects.all(), source='associated_document', write_only=True, required=False, allow_null=True
@@ -78,7 +80,7 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector',
             'to_sector', 'content', 'associated_document', 'associated_document_id', 'is_internal', 'notes',
-            'request_details' # Campo da Fase 2
+            'request_details'
         ]
         read_only_fields = ['actor', 'timestamp', 'associated_document']
 

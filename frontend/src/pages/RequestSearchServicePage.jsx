@@ -1,13 +1,17 @@
 /*
 ================================================================================
-ARQUIVO: frontend/src/pages/RequestSearchServicePage.jsx (NOVO ARQUIVO)
+ARQUIVO: frontend/src/pages/RequestSearchServicePage.jsx (REFATORADO)
 ================================================================================
-Página para solicitar o Serviço de Busca de Contrato.
 */
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import MainLayout from '../components/MainLayout';
+// ADICIONADO: Imports dos novos componentes de UI
+import Select from '../components/ui/Select';
+import Textarea from '../components/ui/Textarea';
+import Button from '../components/ui/Button';
+import MessageAlert from '../components/ui/MessageAlert';
 
 function RequestSearchServicePage() {
     const { axiosInstance } = useContext(AuthContext);
@@ -20,14 +24,13 @@ function RequestSearchServicePage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Busca os casos do usuário logado para preencher o select
     useEffect(() => {
         const fetchCases = async () => {
             try {
                 const response = await axiosInstance.get('/api/cases/');
                 setCases(response.data);
             } catch (err) {
-                console.error("Erro ao buscar casos para seleção:", err.response?.data || err.message);
+                console.error("Erro ao buscar casos:", err.response?.data || err.message);
                 setError("Não foi possível carregar a lista de casos.");
             }
         };
@@ -49,76 +52,59 @@ function RequestSearchServicePage() {
                 request_details: requestDetails,
             });
             setSuccess('Solicitação de serviço enviada com sucesso! Você será redirecionado.');
-
+            
             setTimeout(() => {
-                navigate('/documents'); // Redireciona para a página de documentos
+                navigate('/documents');
             }, 2000);
 
         } catch (err) {
             console.error("Erro ao enviar solicitação:", err.response?.data);
-            let errorMessage = "Ocorreu um erro ao enviar a solicitação.";
-            if (err.response?.data) {
-                errorMessage = err.response.data.error || Object.values(err.response.data).flat().join(' | ');
-            }
-            setError(errorMessage);
+            setError(err.response?.data?.error || "Ocorreu um erro ao enviar a solicitação.");
         } finally {
             setLoading(false);
         }
     };
+
+    // Mapeia os casos para o formato esperado pelo componente Select
+    const caseOptions = cases.map(c => ({
+        value: c.id,
+        label: `${c.title} (Cliente: ${c.client_detail?.email || 'N/A'})` // <-- CORRIGIDO AQUI!
+    }));
 
     return (
         <MainLayout>
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Solicitar Serviço de Busca de Contrato</h2>
             <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
                 <div className="space-y-6">
-                    {/* Mensagens de erro/sucesso */}
-                    {error && <p className="text-red-500 text-center mb-4 p-3 bg-red-100 rounded-md">{error}</p>}
-                    {success && <p className="text-green-600 text-center mb-4 p-3 bg-green-100 rounded-md">{success}</p>}
-
-                    <div>
-                        <label htmlFor="case-select" className="block text-sm font-medium text-gray-700 mb-1">
-                            Selecione o Caso
-                        </label>
-                        <select
-                            id="case-select"
-                            value={selectedCaseId}
-                            onChange={(e) => setSelectedCaseId(e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        >
-                            <option value="" disabled>-- Escolha um caso --</option>
-                            {cases.length > 0 ? cases.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {c.title} (ID: {c.id}) - Cliente: {c.client?.email || 'N/A'} {/* Exibe email do cliente */}
-                                </option>
-                            )) : (
-                                <option value="" disabled>Carregando casos ou nenhum caso encontrado.</option>
-                            )}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="request-details" className="block text-sm font-medium text-gray-700 mb-1">
-                            Detalhes da Solicitação
-                        </label>
-                        <textarea
-                            id="request-details"
-                            rows="6"
-                            value={requestDetails}
-                            onChange={(e) => setRequestDetails(e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Informe aqui todos os detalhes necessários para a busca do contrato, como nome completo, CPF, número do contrato, etc."
-                            required
-                        />
-                    </div>
+                    <Select
+                        label="Selecione o Caso"
+                        name="case"
+                        value={selectedCaseId}
+                        onChange={(e) => setSelectedCaseId(e.target.value)}
+                        options={caseOptions}
+                        required
+                        error={error.includes('case:') ? error : null}
+                    />
+                    <Textarea
+                        label="Detalhes da Solicitação"
+                        name="requestDetails"
+                        value={requestDetails}
+                        onChange={(e) => setRequestDetails(e.target.value)}
+                        placeholder="Informe aqui todos os detalhes necessários para a busca do contrato..."
+                        required
+                        error={error.includes('request_details:') ? error : null}
+                    />
                 </div>
-                <div className="flex justify-end pt-6">
-                    <button
+                <div className="pt-6">
+                    {error && <div className="mb-4"><MessageAlert message={error} type="error" /></div>}
+                    {success && <div className="mb-4"><MessageAlert message={success} type="success" /></div>}
+                    <Button
                         type="submit"
-                        disabled={loading || success}
-                        className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-all"
+                        disabled={loading || !!success}
+                        variant="primary"
                     >
                         {loading ? 'Enviando...' : 'Enviar Solicitação'}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </MainLayout>
