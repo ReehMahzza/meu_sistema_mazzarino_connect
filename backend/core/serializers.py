@@ -10,9 +10,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
-        extra_kwargs = { 'first_name': {'required': False}, 'last_name': {'required': False} }
-        read_only_fields = ['id']
+        # ADICIONADO: client_id para aparecer na resposta
+        fields = ('id', 'client_id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
+        extra_kwargs = {
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+        }
+        # ADICIONADO: client_id aos campos somente leitura
+        read_only_fields = ['id', 'client_id']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -27,32 +32,50 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         while CustomUser.objects.filter(username=username).exists():
             username = f"{email.split('@')[0]}{counter}"
             counter += 1
-        user = CustomUser.objects.create_user(username=username, **validated_data)
+
+        user = CustomUser.objects.create_user(
+            username=username,
+            **validated_data
+        )
         return user
 
 class ActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ['id', 'first_name', 'last_name', 'email']
+        # ADICIONADO: client_id para aparecer em locais que usam este serializer
+        fields = ['id', 'client_id', 'first_name', 'last_name', 'email']
+
+class DocumentMovementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = ['id', 'file_name', 'file_url']
+
+class ProcessMovementSerializer(serializers.ModelSerializer):
+    actor = ActorSerializer(read_only=True)
+    associated_document = DocumentMovementSerializer(read_only=True)
+
+    class Meta:
+        model = ProcessMovement
+        fields = [
+            'id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector',
+            'to_sector', 'content', 'associated_document', 'is_internal', 'notes',
+            'request_details'
+        ]
+        read_only_fields = ['actor', 'timestamp']
+        extra_kwargs = {
+            'request_details': {'required': False}
+        }
 
 class DocumentSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
 
     class Meta:
         model = Document
-        fields = ['id', 'case', 'file_name', 'file_type', 'file_url', 'upload_date', 'description', 'uploaded_by', 'uploaded_by_name']
+        fields = [
+            'id', 'case', 'file_name', 'file_type', 'file_url',
+            'upload_date', 'description', 'uploaded_by', 'uploaded_by_name'
+        ]
         read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'uploaded_by_name']
-
-class ProcessMovementSerializer(serializers.ModelSerializer):
-    actor = ActorSerializer(read_only=True)
-    # Ajustado para usar DocumentSerializer em vez de um serializer anônimo
-    associated_document = DocumentSerializer(read_only=True)
-
-    class Meta:
-        model = ProcessMovement
-        fields = ['id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector', 'to_sector', 'content', 'associated_document', 'is_internal', 'notes', 'request_details']
-        read_only_fields = ['actor', 'timestamp']
-        extra_kwargs = { 'request_details': {'required': False} }
 
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
@@ -64,8 +87,10 @@ class CaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Case
         fields = [
-            'id', 'title', 'description', 'created_by', 'created_at',
-            'current_status', 'movements', 'client', 
+            'id',
+            'protocol_id', # ADICIONADO
+            'title', 'description', 'created_by', 'created_at',
+            'current_status', 'movements', 'client', 'client_id',
             'bank_name', 'bank_code', 'contract_type',
             'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
             'proposal_sent_date', 'client_decision', 'docusign_status',
@@ -74,10 +99,9 @@ class CaseSerializer(serializers.ModelSerializer):
             'bank_payment_status', 'client_liquidation_date', 'commission_value',
             'completion_date', 'final_communication_sent', 'survey_sent',
             'case_type', 'parent_case',
-            'documents',
-            'client_id' # <-- ADICIONADO AQUI
+            'documents'
         ]
-        read_only_fields = ['created_by', 'client', 'movements', 'documents']
+        read_only_fields = ['created_by', 'client', 'movements', 'documents', 'protocol_id']
 
 class ComunicacaoSerializer(serializers.ModelSerializer):
     autor = ActorSerializer(read_only=True)
@@ -88,5 +112,4 @@ class ComunicacaoSerializer(serializers.ModelSerializer):
             'id', 'case', 'autor', 'tipo_comunicacao', 'destinatario',
             'assunto', 'corpo', 'timestamp'
         ]
-        # CORRIGIDO: Adicionado 'case' aos campos somente leitura
         read_only_fields = ['autor', 'timestamp', 'case']

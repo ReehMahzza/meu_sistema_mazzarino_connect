@@ -3,6 +3,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.utils import timezone # Adicionado para usar data/hora
 
 class CustomUser(AbstractUser):
     first_name = models.CharField(('first name'), max_length=150, blank=True, null=True)
@@ -12,6 +13,9 @@ class CustomUser(AbstractUser):
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
 
+    # ADICIONADO: Campo para o ID de Cliente personalizado
+    client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -19,6 +23,31 @@ class CustomUser(AbstractUser):
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         return self.email
+
+    # ADICIONADO: Lógica para gerar o client_id automaticamente
+    def save(self, *args, **kwargs):
+        if not self.pk and not self.client_id:
+            # A lógica depende do CPF. Se não houver CPF, o ID não será gerado.
+            if self.cpf:
+                cpf_digits = ''.join(filter(str.isdigit, self.cpf))
+                if len(cpf_digits) >= 3:
+                    cpf_prefix = cpf_digits[:3]
+
+                    now = timezone.now()
+                    current_month = now.month
+                    current_year = now.year
+
+                    # Conta quantos clientes já foram criados neste mês/ano para obter a sequência
+                    sequence_count = CustomUser.objects.filter(
+                        date_joined__year=current_year,
+                        date_joined__month=current_month
+                    ).count()
+                    next_sequence = sequence_count + 1
+
+                    # Formata o ID final: XXX-MMSS/AAAA
+                    self.client_id = f"{cpf_prefix}-{current_month:02d}{next_sequence:02d}/{current_year}"
+
+        super(CustomUser, self).save(*args, **kwargs)
 
 class Case(models.Model):
     CASE_TYPE_CHOICES = [
@@ -34,6 +63,10 @@ class Case(models.Model):
         ('cartao_consignado', 'Cartão Consignado'),
         ('cartao_beneficio', 'Cartão Benefício'),
     ]
+
+    # ADICIONADO: Campo para o ID de Protocolo personalizado
+    protocol_id = models.CharField(max_length=30, unique=True, blank=True, null=True, editable=False, verbose_name="ID do Protocolo")
+
     title = models.CharField(max_length=255, verbose_name="Título do Caso")
     description = models.TextField(blank=True, null=True, verbose_name="Descrição")
     created_by = models.ForeignKey(
@@ -194,14 +227,40 @@ class Case(models.Model):
     )
 
     def __str__(self):
-        return self.title
+        # Mostra o ID personalizado se existir, senão o título.
+        return self.protocol_id or self.title
+
+    # ADICIONADO: Lógica para gerar o protocol_id personalizado e ofuscado
+    def save(self, *args, **kwargs):
+        if not self.pk and not self.protocol_id:
+            prefix_map = {
+                'renegociacao_credito': 'PT',
+                'resolucao_conflitos_telecom': 'PA',
+                # Adicione outros mapeamentos aqui se necessário
+                'outros': 'OT' 
+            }
+            prefix = prefix_map.get(self.case_type, 'CS') # 'CS' como um prefixo padrão
+
+            current_year = timezone.now().year
+
+            cpf_part = "000"
+            if self.client and self.client.cpf:
+                numeric_cpf = ''.join(filter(str.isdigit, self.client.cpf))
+                if len(numeric_cpf) >= 3:
+                    cpf_part = numeric_cpf[:3]
+
+            sequential_real = Case.objects.filter(created_at__year=current_year).count() + 1
+            obfuscated_sequential = (sequential_real * 137) + 10000
+
+            self.protocol_id = f"{prefix}-{current_year}-{obfuscated_sequential}-{cpf_part}"
+
+        super(Case, self).save(*args, **kwargs)
 
 class Document(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='documents', verbose_name="Caso")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        # related_name='documents', # Mudei para uploaded_documents para evitar conflito
         related_name='uploaded_documents',
         verbose_name="Enviado por"
     )
@@ -247,7 +306,6 @@ class ProcessMovement(models.Model):
         actor_str = self.actor.email if self.actor else "[Usuário Removido]"
         return f"Andamento em '{self.case.title}' por {actor_str} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
 
-# ADICIONADO: Novo modelo para a entidade Comunicacao
 class Comunicacao(models.Model):
     TIPO_CHOICES = [
         ('Nota Interna', 'Nota Interna'),

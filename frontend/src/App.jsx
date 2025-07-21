@@ -8,20 +8,18 @@ import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ProtocolsPage from './pages/ProtocolsPage';
-import OficiosPage from './pages/OficiosPage.jsx';
+import OficiosPage from './pages/OficiosPage';
 import ProcessosPage from './pages/ProcessosPage';
 import SettingsPage from './pages/SettingsPage';
 import ProtocolDetailPage from './pages/ProtocolDetailPage';
+import NewProtocolPage from './pages/NewProtocolPage'; // 1. IMPORTE A NOVA PÁGINA
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
-          {/* Rota pública para Login */}
           <Route path="/login" element={<LoginPage />} />
-
-          {/* Rotas privadas que usam o MainLayout */}
           <Route
             path="/*"
             element={
@@ -30,6 +28,10 @@ function App() {
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
+
+                    {/* 2. ADICIONE A NOVA ROTA AQUI */}
+                    <Route path="/novo-protocolo" element={<NewProtocolPage />} />
+
                     <Route path="/protocolos" element={<ProtocolsPage />} />
                     <Route path="/protocolos/:protocolId" element={<ProtocolDetailPage />} />
                     <Route path="/oficios" element={<OficiosPage />} />

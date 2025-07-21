@@ -1,7 +1,8 @@
 // frontend/src/pages/ProtocolsPage.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import Button from '../components/ui/Button';
 
 function ProtocolsPage() {
     const [protocols, setProtocols] = useState([]);
@@ -15,8 +16,11 @@ function ProtocolsPage() {
             try {
                 setLoading(true);
                 setError('');
-                // A busca é feita no endpoint que lista os casos
-                const response = await axiosInstance.get('/api/cases/');
+
+                // A LINHA MAIS IMPORTANTE É ESTA ABAIXO:
+                // Garante que estamos pedindo ao backend para filtrar os casos.
+                const response = await axiosInstance.get('/api/cases/?case_type=renegociacao_credito');
+
                 setProtocols(response.data);
             } catch (err) {
                 console.error("Erro ao buscar protocolos:", err);
@@ -30,7 +34,6 @@ function ProtocolsPage() {
     }, [axiosInstance]);
 
     const handleRowClick = (protocolId) => {
-        // Navega para a página de detalhes do protocolo clicado
         navigate(`/protocolos/${protocolId}`);
     };
 
@@ -44,16 +47,23 @@ function ProtocolsPage() {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Protocolos</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">Protocolos</h1>
+                <Link to="/novo-protocolo">
+                    <Button variant="primary">+ Novo Protocolo</Button>
+                </Link>
+            </div>
 
             {protocols.length === 0 ? (
-                <p className="text-center text-gray-500">Nenhum protocolo encontrado.</p>
+                <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                    <p className="text-gray-500">Nenhum protocolo encontrado.</p>
+                </div>
             ) : (
                 <div className="bg-white shadow-md rounded-lg overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID do Protocolo</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -66,7 +76,7 @@ function ProtocolsPage() {
                                     onClick={() => handleRowClick(protocol.id)}
                                     className="hover:bg-gray-100 cursor-pointer transition-colors duration-200"
                                 >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{protocol.id}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{protocol.protocol_id || protocol.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{protocol.title}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{protocol.client?.email || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
