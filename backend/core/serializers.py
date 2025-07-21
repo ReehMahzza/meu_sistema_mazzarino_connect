@@ -10,13 +10,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        # ADICIONADO: client_id para aparecer na resposta
-        fields = ('id', 'client_id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
+        # ADICIONADO: Campo 'role'
+        fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name', 'client_id', 'role')
         extra_kwargs = {
             'first_name': {'required': False},
             'last_name': {'required': False},
         }
-        # ADICIONADO: client_id aos campos somente leitura
         read_only_fields = ['id', 'client_id']
 
     def validate(self, attrs):
@@ -43,7 +42,7 @@ class ActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
         # ADICIONADO: client_id para aparecer em locais que usam este serializer
-        fields = ['id', 'client_id', 'first_name', 'last_name', 'email']
+        fields = ['id', 'first_name', 'last_name', 'email', 'client_id', 'role', 'telefone', 'cpf']
 
 class DocumentMovementSerializer(serializers.ModelSerializer):
     class Meta:

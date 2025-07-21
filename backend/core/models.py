@@ -6,13 +6,22 @@ from django.conf import settings
 from django.utils import timezone # Adicionado para usar data/hora
 
 class CustomUser(AbstractUser):
+    ROLE_CHOICES = [
+        ('CLIENTE', 'Cliente'),
+        ('FUNCIONARIO', 'Funcionário'),
+        ('ADMIN', 'Administrador'),
+    ]
     first_name = models.CharField(('first name'), max_length=150, blank=True, null=True)
     last_name = models.CharField(('last name'), max_length=150, blank=True, null=True)
     email = models.EmailField(unique=True)
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True, verbose_name="CPF")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
+    client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
 
+    # ADICIONADO: Campo role para distinguir tipos de usuário
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='CLIENTE', verbose_name="Função")
+    
     # ADICIONADO: Campo para o ID de Cliente personalizado
     client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
 

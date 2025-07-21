@@ -9,6 +9,7 @@ from .serializers import (
     UserRegistrationSerializer, CaseSerializer, DocumentSerializer,
     ProcessMovementSerializer, ComunicacaoSerializer, ActorSerializer
 )
+from .serializers import ActorSerializer # Garanta que ActorSerializer está importado
 
 CustomUser = get_user_model()
 
@@ -24,7 +25,15 @@ class RegisterView(APIView):
                 "user": ActorSerializer(user).data
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class ClientListView(generics.ListAPIView):
+    """
+    View para listar todos os usuários com a função 'CLIENTE'.
+    """
+    serializer_class = ActorSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return CustomUser.objects.filter(role='CLIENTE').order_by('-date_joined')
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

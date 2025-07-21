@@ -17,7 +17,8 @@ from .views import (
     CaseLiquidationView,
     UserListView,
     CaseCompletionView,
-    ComunicacaoListCreateView # ADICIONADO: Import da nova View
+    ComunicacaoListCreateView,  # ADICIONADO: Import da nova View
+    ClientListView,  # ADICIONADO
 )
 
 urlpatterns = [
@@ -46,4 +47,7 @@ urlpatterns = [
 
     # ADICIONADO: Nova rota para a entidade Comunicacao
     path('cases/<int:case_id>/comunicacoes/', ComunicacaoListCreateView.as_view(), name='comunicacao-list-create'),
+    
+    # ADICIONADO: Nova rota para a lista de clientes
+    path('clients/', ClientListView.as_view(), name='client-list'),
 ]
