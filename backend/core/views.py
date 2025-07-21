@@ -1,13 +1,15 @@
-# Em backend/core/views.py (VERSÃO FINAL E CORRIGIDA DE TODAS AS VIEWS ATÉ FASE 8)
+# Em backend/core/views.py
 
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
-from rest_framework.serializers import ValidationError # Importar ValidationError
-from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer, ProcessMovementSerializer, ActorSerializer
-from .models import Case, Document, ProcessMovement
-    
+from rest_framework.serializers import ValidationError
+# ADICIONADO ComunicacaoSerializer
+from .serializers import UserRegistrationSerializer, CaseSerializer, DocumentSerializer, ProcessMovementSerializer, ActorSerializer, ComunicacaoSerializer 
+# ADICIONADO Comunicacao
+from .models import Case, Document, ProcessMovement, Comunicacao
+
 CustomUser = get_user_model()
 
 class RegisterView(APIView):
@@ -100,7 +102,7 @@ class ProcessMovementListCreateView(generics.ListCreateAPIView):
         def perform_create(self, serializer):
             case_id = self.kwargs['case_id']
             case = Case.objects.get(id=case_id, created_by=self.request.user)
-            
+
             associated_doc_obj = serializer.validated_data.get('associated_document') 
 
             movement = serializer.save(
@@ -111,7 +113,7 @@ class ProcessMovementListCreateView(generics.ListCreateAPIView):
             if movement.movement_type:
                 case.current_status = movement.movement_type
                 case.save()
-    
+
 class RequestContractSearchView(APIView):
         """
         Registra uma solicitação para o Serviço de Busca de Contrato para um caso.
@@ -171,14 +173,14 @@ class CaseAnalysisUpdateView(generics.UpdateAPIView):
                     movement_type='Emissão Parecer Técnico',
                     content='Parecer técnico emitido/atualizado.'
                 )
-            
+
             if updated_instance.human_analysis_result != 'Aguardando Análise':
                 updated_instance.current_status = f"Análise Concluída: {updated_instance.human_analysis_result}"
             elif updated_instance.ia_analysis_result != 'Aguardando Análise':
                 updated_instance.current_status = f"Análise IA: {updated_instance.ia_analysis_result}"
-            
+
             updated_instance.save()
-    
+
 class CaseDetailView(generics.RetrieveAPIView):
         """
         View para obter os detalhes de um caso específico.
@@ -226,7 +228,7 @@ class CaseProposalContractView(generics.UpdateAPIView):
                     updated_instance.current_status = 'Proposta Aceita - Aguardando Contratação'
                 else:
                     updated_instance.current_status = 'Proposta Rejeitada'
-            
+
             if updated_instance.docusign_status != old_docusign_status:
                 if updated_instance.docusign_status == 'Assinado':
                     movement_type = 'Acordo Assinado'
@@ -239,14 +241,14 @@ class CaseProposalContractView(generics.UpdateAPIView):
                 else: # Para 'Enviado' ou 'Não Enviado'
                     movement_type = 'Status DocuSign Atualizado'
                     content = f'Status DocuSign do acordo final atualizado para: "{updated_instance.docusign_status}".'
-                
+
                 ProcessMovement.objects.create(
                     case=updated_instance,
                     actor=self.request.user,
                     movement_type=movement_type,
                     content=content
                 )
-            
+
             updated_instance.save() # Salva o status atualizado do caso
 
 class CaseNegotiationUpdateView(generics.UpdateAPIView):
@@ -291,7 +293,7 @@ class CaseNegotiationUpdateView(generics.UpdateAPIView):
                     movement_type='Contraproposta Recebida',
                     content=f'Contraproposta recebida do banco. Detalhes: {updated_instance.counterproposal_details}'
                 )
-            
+
             updated_instance.save() # Salva o status atualizado do caso
 
 class CaseFormalizationView(generics.UpdateAPIView):
@@ -331,14 +333,14 @@ class CaseFormalizationView(generics.UpdateAPIView):
                 else: # Para 'Enviado' ou 'Não Enviado'
                     movement_type = 'Status DocuSign Atualizado'
                     content = f'Status DocuSign do acordo final atualizado para: "{updated_instance.docusign_status}".'
-                
+
                 ProcessMovement.objects.create(
                     case=updated_instance,
                     actor=self.request.user,
                     movement_type=movement_type,
                     content=content
                 )
-            
+
             updated_instance.save()
 
 class CaseLiquidationView(generics.UpdateAPIView):
@@ -393,7 +395,7 @@ class CaseLiquidationView(generics.UpdateAPIView):
                     content=f'Valor líquido repassado ao cliente em {updated_instance.client_liquidation_date.strftime("%d/%m/%Y")}.'
                 )
                 updated_instance.current_status = 'Caso Liquidado e Finalizado'
-            
+
             updated_instance.save()
 
 class CaseCompletionView(generics.UpdateAPIView):
@@ -437,20 +439,41 @@ class CaseCompletionView(generics.UpdateAPIView):
                     movement_type='Pesquisa Satisfação Enviada',
                     content='Pesquisa de satisfação enviada ao cliente.'
                 )
-            
+
             updated_instance.save()
 
 class UserListView(generics.ListAPIView):
+        """
+        View para listar usuários (usado para busca por email no NewCasePage)
+        """
+        from .serializers import ActorSerializer  # Mover import para dentro da classe se necessário
+
+        serializer_class = ActorSerializer
+        permission_classes = [permissions.IsAuthenticated]
+
+        def get_queryset(self):
+            email = self.request.query_params.get('email')
+            if email:
+                return CustomUser.objects.filter(email=email)
+            return CustomUser.objects.all()[:10]  # Limitar resultado para evitar sobrecarga
+
+# ADICIONADO: Nova view para a entidade Comunicacao
+class ComunicacaoListCreateView(generics.ListCreateAPIView):
     """
-    View para listar usuários (usado para busca por email no NewCasePage)
+    View para listar as comunicações de um caso ou criar uma nova.
     """
-    from .serializers import ActorSerializer  # Mover import para dentro da classe se necessário
-    
-    serializer_class = ActorSerializer
+    serializer_class = ComunicacaoSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
-        email = self.request.query_params.get('email')
-        if email:
-            return CustomUser.objects.filter(email=email)
-        return CustomUser.objects.all()[:10]  # Limitar resultado para evitar sobrecarga
+        # Filtra as comunicações pelo ID do caso passado na URL.
+        case_id = self.kwargs['case_id']
+        # Garante que o usuário só possa ver comunicações de casos que ele criou.
+        # (Esta lógica pode ser refinada para outras permissões no futuro)
+        return Comunicacao.objects.filter(case_id=case_id, case__created_by=self.request.user)
+
+    def perform_create(self, serializer):
+        # Associa o usuário logado e o caso automaticamente ao criar uma nova comunicação.
+        case_id = self.kwargs['case_id']
+        case = Case.objects.get(id=case_id)
+        serializer.save(autor=self.request.user, case=case)

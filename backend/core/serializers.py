@@ -1,15 +1,8 @@
-# Em backend/core/serializers.py (VERSÃO FINAL E CORRIGIDA DE TODAS AS SERIALIZERS ATÉ FASE 7)
+# backend/core/serializers.py
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Case, Document, ProcessMovement, CustomUser # Importar CustomUser diretamente
-
-# ActorSerializer (para exibir detalhes do usuário)
-class ActorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'first_name', 'last_name', 'email']
-
+from .models import Case, Document, ProcessMovement, CustomUser, Comunicacao
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -18,101 +11,82 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name')
-        extra_kwargs = {
-            'first_name': {'required': False},
-            'last_name': {'required': False},
-            'username': {'required': False},
-        }
+        extra_kwargs = { 'first_name': {'required': False}, 'last_name': {'required': False} }
         read_only_fields = ['id']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "As senhas não coincidem."})
-
-        if not attrs.get('username') and attrs.get('email'):
-            email = attrs['email']
-            base_username = email.split('@')[0]
-            username = base_username
-            counter = 1
-            while CustomUser.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-            attrs['username'] = username
-
         return attrs
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        user = CustomUser.objects.create_user(**validated_data)
+        email = validated_data.get('email')
+        username = email.split('@')[0]
+        counter = 1
+        while CustomUser.objects.filter(username=username).exists():
+            username = f"{email.split('@')[0]}{counter}"
+            counter += 1
+        user = CustomUser.objects.create_user(username=username, **validated_data)
         return user
 
+class ActorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'first_name', 'last_name', 'email']
+
 class DocumentSerializer(serializers.ModelSerializer):
-    uploaded_by = ActorSerializer(read_only=True)
-    case_title = serializers.CharField(source='case.title', read_only=True)
-    # ADICIONADO: Campo 'case' como write_only para ser aceito no payload
-    case = serializers.PrimaryKeyRelatedField(queryset=Case.objects.all(), write_only=True) # <-- ADICIONADO AQUI!
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
 
     class Meta:
         model = Document
-        fields = [
-            'id', 'case', 'case_title', 'file_name', 'file_type', 'file_url',
-            'upload_date', 'description', 'uploaded_by'
-        ]
-        read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'case_title']
-
-
-class DocumentMovementSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para documentos aninhados em andamentos."""
-    class Meta:
-        model = Document
-        fields = ['id', 'file_name', 'file_url']
-
+        fields = ['id', 'case', 'file_name', 'file_type', 'file_url', 'upload_date', 'description', 'uploaded_by', 'uploaded_by_name']
+        read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'uploaded_by_name']
 
 class ProcessMovementSerializer(serializers.ModelSerializer):
-    actor = ActorSerializer(read_only=True) # Este é para LEITURA
-    associated_document = DocumentMovementSerializer(read_only=True)
-    associated_document_id = serializers.PrimaryKeyRelatedField(
-        queryset=Document.objects.all(), source='associated_document', write_only=True, required=False, allow_null=True
-    )
+    actor = ActorSerializer(read_only=True)
+    # Ajustado para usar DocumentSerializer em vez de um serializer anônimo
+    associated_document = DocumentSerializer(read_only=True)
 
     class Meta:
         model = ProcessMovement
-        fields = [
-            'id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector',
-            'to_sector', 'content', 'associated_document', 'associated_document_id', 'is_internal', 'notes',
-            'request_details'
-        ]
-        read_only_fields = ['actor', 'timestamp', 'associated_document']
+        fields = ['id', 'case', 'actor', 'movement_type', 'timestamp', 'from_sector', 'to_sector', 'content', 'associated_document', 'is_internal', 'notes', 'request_details']
+        read_only_fields = ['actor', 'timestamp']
+        extra_kwargs = { 'request_details': {'required': False} }
 
-
-# REESCRITA COMPLETA E CORRIGIDA DO CASE SERIALIZER (COM TODOS OS CAMPOS ATÉ FASE 7)
 class CaseSerializer(serializers.ModelSerializer):
     movements = ProcessMovementSerializer(many=True, read_only=True)
+    client = ActorSerializer(read_only=True)
     created_by = ActorSerializer(read_only=True)
-
-    # Campo para escrita do cliente (ID)
-    client = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.all(), write_only=True) 
-    # Campo para leitura detalhada do cliente (objeto serializado)
-    client_detail = ActorSerializer(source='client', read_only=True) 
+    client_id = serializers.IntegerField(write_only=True, required=False)
+    documents = DocumentSerializer(many=True, read_only=True) 
 
     class Meta:
         model = Case
         fields = [
             'id', 'title', 'description', 'created_by', 'created_at',
-            'current_status', 'movements', 
-            'client', # Campo de escrita (recebe o ID)
-            'client_detail', # Campo de leitura (retorna o objeto Actor)
-            'ia_analysis_result', 'human_analysis_result', 'technical_report_content', # Fase 3
-            'proposal_sent_date', 'client_decision', 'docusign_status', # Fase 4
-            'dossier_sent_date', 'bank_response_status', 'counterproposal_details', # Fase 5
-            'final_agreement_sent_date', # Fase 6
-            'bank_payment_status', 'client_liquidation_date', 'commission_value', # Fase 7
-            'completion_date', 'final_communication_sent', 'survey_sent' # Fase 8
+            'current_status', 'movements', 'client', 
+            'bank_name', 'bank_code', 'contract_type',
+            'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
+            'proposal_sent_date', 'client_decision', 'docusign_status',
+            'dossier_sent_date', 'bank_response_status', 'counterproposal_details',
+            'final_agreement_sent_date',
+            'bank_payment_status', 'client_liquidation_date', 'commission_value',
+            'completion_date', 'final_communication_sent', 'survey_sent',
+            'case_type', 'parent_case',
+            'documents',
+            'client_id' # <-- ADICIONADO AQUI
         ]
-        read_only_fields = ['created_at', 'current_status', 'movements', 'client_detail'] # client_detail é apenas para leitura
+        read_only_fields = ['created_by', 'client', 'movements', 'documents']
 
-    def create(self, validated_data):
-        # O PrimaryKeyRelatedField já converte o ID para o objeto CustomUser,
-        # então 'client' já estará no validated_data como o objeto CustomUser.
-        return super().create(validated_data)
-        
+class ComunicacaoSerializer(serializers.ModelSerializer):
+    autor = ActorSerializer(read_only=True)
+
+    class Meta:
+        model = Comunicacao
+        fields = [
+            'id', 'case', 'autor', 'tipo_comunicacao', 'destinatario',
+            'assunto', 'corpo', 'timestamp'
+        ]
+        # CORRIGIDO: Adicionado 'case' aos campos somente leitura
+        read_only_fields = ['autor', 'timestamp', 'case']

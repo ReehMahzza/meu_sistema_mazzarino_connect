@@ -1,3 +1,5 @@
+# backend/core/models.py
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
@@ -5,14 +7,13 @@ from django.conf import settings
 class CustomUser(AbstractUser):
     first_name = models.CharField(('first name'), max_length=150, blank=True, null=True)
     last_name = models.CharField(('last name'), max_length=150, blank=True, null=True)
-    
     email = models.EmailField(unique=True)
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True, verbose_name="CPF")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username'] 
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         if self.first_name and self.last_name:
@@ -20,24 +21,57 @@ class CustomUser(AbstractUser):
         return self.email
 
 class Case(models.Model):
-    title = models.CharField(max_length=255, verbose_name="Título do Caso") 
-    description = models.TextField(blank=True, null=True, verbose_name="Descrição") 
+    CASE_TYPE_CHOICES = [
+        ('renegociacao_credito', 'Renegociação de Crédito'),
+        ('resolucao_conflitos_telecom', 'Resolução de Conflitos - Telecom'),
+        ('outros', 'Outros'),
+    ]
+    CONTRACT_TYPE_CHOICES = [
+        ('renegociacao_consignado', 'Renegociação Consignado INSS'),
+        ('credito_pessoal', 'Crédito Pessoal'),
+        ('financiamento_veicular', 'Financiamento Veicular'),
+        ('financiamento_imovel', 'Financiamento Imóvel'),
+        ('cartao_consignado', 'Cartão Consignado'),
+        ('cartao_beneficio', 'Cartão Benefício'),
+    ]
+    title = models.CharField(max_length=255, verbose_name="Título do Caso")
+    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='created_cases',
         verbose_name="Criado por (Funcionário)"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='client_cases',
         verbose_name="Cliente Associado"
     )
-
-    # Fase 3: Análise e Parecer Técnico
+    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
+    created_at = models.DateTimeField(auto_now_add=True)
+    case_type = models.CharField(
+        max_length=50,
+        choices=CASE_TYPE_CHOICES,
+        default='renegociacao_credito',
+        verbose_name="Tipo de Caso"
+    )
+    parent_case = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='child_cases',
+        verbose_name="Caso Pai"
+    )
+    bank_name = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nome do Banco")
+    bank_code = models.CharField(max_length=3, null=True, blank=True, verbose_name="Código do Banco")
+    contract_type = models.CharField(
+        max_length=50,
+        choices=CONTRACT_TYPE_CHOICES,
+        default='renegociacao_consignado',
+        verbose_name="Tipo de Contrato"
+    )
     IA_ANALYSIS_CHOICES = [
         ('Aguardando Análise', 'Aguardando Análise'),
         ('Potencialmente Abusivo', 'Potencialmente Abusivo'),
@@ -65,8 +99,6 @@ class Case(models.Model):
         null=True,
         verbose_name="Conteúdo do Parecer Técnico"
     )
-
-    # Fase 4: Proposta de Renegociação e Contratação
     PROPOSAL_DECISION_CHOICES = [
         ('Aguardando Decisão', 'Aguardando Decisão'),
         ('Aceita', 'Aceita'),
@@ -95,8 +127,6 @@ class Case(models.Model):
         default='Não Enviado',
         verbose_name="Status DocuSign"
     )
-
-    # Fase 5: Negociação com a Instituição Financeira
     BANK_RESPONSE_CHOICES = [
         ('Aguardando Resposta', 'Aguardando Resposta'),
         ('Aceita', 'Aceita'),
@@ -120,15 +150,11 @@ class Case(models.Model):
         null=True,
         verbose_name="Detalhes da Contraproposta"
     )
-
-    # Fase 6: Formalização do Acordo
     final_agreement_sent_date = models.DateField(
         blank=True,
         null=True,
         verbose_name="Data de Envio do Acordo Final"
     )
-    
-    # Fase 7: Liquidação Financeira
     BANK_PAYMENT_CHOICES = [
         ('Aguardando Pagamento Banco', 'Aguardando Pagamento Banco'),
         ('Pago pelo Banco', 'Pago pelo Banco'),
@@ -153,8 +179,6 @@ class Case(models.Model):
         blank=True,
         verbose_name="Valor da Comissão"
     )
-
-    # Fase 8: Encerramento e Arquivamento
     completion_date = models.DateField(
         blank=True,
         null=True,
@@ -169,27 +193,26 @@ class Case(models.Model):
         verbose_name="Pesquisa de Satisfação Enviada"
     )
 
-
     def __str__(self):
         return self.title
 
-class Document(models.Model): 
+class Document(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='documents', verbose_name="Caso")
-    file_name = models.CharField(max_length=255, verbose_name="Nome do Arquivo")
-    file_type = models.CharField(max_length=50, verbose_name="Tipo do Arquivo")
-    file_url = models.URLField(max_length=500, blank=True, null=True, verbose_name="URL do Arquivo")
-    upload_date = models.DateTimeField(auto_now_add=True, verbose_name="Data de Upload")
-    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
+        # related_name='documents', # Mudei para uploaded_documents para evitar conflito
         related_name='uploaded_documents',
         verbose_name="Enviado por"
     )
+    file_name = models.CharField(max_length=255, verbose_name="Nome do Arquivo")
+    file_type = models.CharField(max_length=50, verbose_name="Tipo do Arquivo")
+    file_url = models.URLField(max_length=1024, default='', blank=True, verbose_name="URL do Arquivo")
+    upload_date = models.DateTimeField(auto_now_add=True, verbose_name="Data de Upload")
+    description = models.TextField(blank=True, null=True, verbose_name="Descrição do Documento")
 
     def __str__(self):
-        return self.file_name
+        return f"{self.file_name} (Caso: {self.case.title})"
 
 class ProcessMovement(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='movements', verbose_name="Caso")
@@ -221,5 +244,34 @@ class ProcessMovement(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        actor_name = self.actor.get_full_name() if self.actor and self.actor.first_name else (self.actor.email if self.actor else 'N/A')
-        return f"Andamento de {actor_name} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
+        actor_str = self.actor.email if self.actor else "[Usuário Removido]"
+        return f"Andamento em '{self.case.title}' por {actor_str} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
+
+# ADICIONADO: Novo modelo para a entidade Comunicacao
+class Comunicacao(models.Model):
+    TIPO_CHOICES = [
+        ('Nota Interna', 'Nota Interna'),
+        ('Email para Cliente', 'Email para Cliente'),
+        ('Notificação para Banco', 'Notificação para Banco'),
+    ]
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='comunicacoes', verbose_name="Caso")
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='comunicacoes',
+        verbose_name="Autor"
+    )
+    tipo_comunicacao = models.CharField(max_length=50, choices=TIPO_CHOICES, verbose_name="Tipo de Comunicação")
+    destinatario = models.CharField(max_length=255, blank=True, null=True, verbose_name="Destinatário (e-mail)")
+    assunto = models.CharField(max_length=255, verbose_name="Assunto")
+    corpo = models.TextField(verbose_name="Corpo da Mensagem")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Data e Hora")
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Comunicação"
+        verbose_name_plural = "Comunicações"
+
+    def __str__(self):
+        return f"{self.tipo_comunicacao} em '{self.case.title}' - {self.assunto}"

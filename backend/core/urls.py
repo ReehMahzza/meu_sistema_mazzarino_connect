@@ -1,11 +1,11 @@
-# Em backend/core/urls.py (VERSÃO FINAL E CORRIGIDA, SEM UserListView)
+# Em backend/core/urls.py
 
 from django.urls import path
 from .views import (
     RegisterView,
     DashboardView,
     CaseListCreateView,
-    CaseDetailView, # Esta é a CaseDetailView para obter um único caso
+    CaseDetailView,
     DocumentListCreateView,
     DocumentDetailView,
     ProcessMovementListCreateView,
@@ -15,11 +15,10 @@ from .views import (
     CaseNegotiationUpdateView,
     CaseFormalizationView,
     CaseLiquidationView,
-    UserListView,  # ← ADICIONAR ESTA IMPORTAÇÃO NO GEMINI
-    CaseCompletionView # ADICIONADO: View da Fase 8
+    UserListView,
+    CaseCompletionView,
+    ComunicacaoListCreateView # ADICIONADO: Import da nova View
 )
-# Não importe TokenObtainPairView e TokenRefreshView aqui, elas são importadas no urls.py principal do projeto
-# from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView # <-- NÃO IMPORTE AQUI!
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -27,7 +26,7 @@ urlpatterns = [
 
     # Rotas para Casos e Documentos
     path('cases/', CaseListCreateView.as_view(), name='case-list-create'),
-    path('cases/<int:pk>/', CaseDetailView.as_view(), name='case-detail'), # Para buscar um único caso
+    path('cases/<int:pk>/', CaseDetailView.as_view(), name='case-detail'),
     path('cases/<int:case_id>/documents/', DocumentListCreateView.as_view(), name='document-list-create'),
     path('documents/<int:pk>/', DocumentDetailView.as_view(), name='document-detail'),
 
@@ -36,14 +35,15 @@ urlpatterns = [
     path('cases/<int:case_id>/request-search-service/', RequestContractSearchView.as_view(), name='request-search-service'),
 
     # Rotas de Fases do Processo (Update)
-    path('cases/<int:pk>/analyze/', CaseAnalysisUpdateView.as_view(), name='case-analysis-update'), # Fase 3
-    path('cases/<int:pk>/proposal-contract/', CaseProposalContractView.as_view(), name='case-proposal-contract-update'), # Fase 4
-    path('cases/<int:pk>/negotiate/', CaseNegotiationUpdateView.as_view(), name='case-negotiation-update'), # Fase 5
-    path('cases/<int:pk>/formalize/', CaseFormalizationView.as_view(), name='case-formalization-update'), # Fase 6
-    path('cases/<int:pk>/liquidate/', CaseLiquidationView.as_view(), name='case-liquidation-update'), # Fase 7
-    path('cases/<int:pk>/complete/', CaseCompletionView.as_view(), name='case-completion-update'), # ADICIONADO: Fase 8
+    path('cases/<int:pk>/analyze/', CaseAnalysisUpdateView.as_view(), name='case-analysis-update'),
+    path('cases/<int:pk>/proposal-contract/', CaseProposalContractView.as_view(), name='case-proposal-contract-update'),
+    path('cases/<int:pk>/negotiate/', CaseNegotiationUpdateView.as_view(), name='case-negotiation-update'),
+    path('cases/<int:pk>/formalize/', CaseFormalizationView.as_view(), name='case-formalization-update'),
+    path('cases/<int:pk>/liquidate/', CaseLiquidationView.as_view(), name='case-liquidation-update'),
+    path('cases/<int:pk>/complete/', CaseCompletionView.as_view(), name='case-completion-update'),
 
-    
-    # ADICIONAR ESTA LINHA:
     path('users/', UserListView.as_view(), name='user-list'),
+
+    # ADICIONADO: Nova rota para a entidade Comunicacao
+    path('cases/<int:case_id>/comunicacoes/', ComunicacaoListCreateView.as_view(), name='comunicacao-list-create'),
 ]

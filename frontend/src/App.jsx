@@ -1,48 +1,49 @@
-        /*
-        ================================================================================
-        ARQUIVO: frontend/src/App.jsx (VERSÃO FINAL COM TODAS AS ROTAS)
-        ================================================================================
-        */
-        import React from 'react';
-        import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-        import { AuthProvider } from './context/AuthContext';
-        import ProtectedRoute from './components/ProtectedRoute';
-        import LoginPage from './pages/LoginPage';
-        import DashboardPage from './pages/DashboardPage';
-        import DocumentsPage from './pages/DocumentsPage';
-        import NewCasePage from './pages/NewCasePage';
-        import RequestSearchServicePage from './pages/RequestSearchServicePage';
-        import CaseAnalysisPage from './pages/CaseAnalysisPage';
-        import ProposalContractPage from './pages/ProposalContractPage';
-        import BankNegotiationPage from './pages/BankNegotiationPage';
-        import FormalizationPage from './pages/FormalizationPage';
-        import LiquidationPage from './pages/LiquidationPage';
-        import CaseCompletionPage from './pages/CaseCompletionPage';
+// frontend/src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 
-        function App() {
-          return (
-            <Router>
-              <AuthProvider>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/" element={<Navigate to="/dashboard" />} />
-                  <Route element={<ProtectedRoute />}>
+import PrivateRoute from './utils/PrivateRoute';
+import MainLayout from './components/layout/MainLayout';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import ProtocolsPage from './pages/ProtocolsPage';
+import OficiosPage from './pages/OficiosPage.jsx';
+import ProcessosPage from './pages/ProcessosPage';
+import SettingsPage from './pages/SettingsPage';
+import ProtocolDetailPage from './pages/ProtocolDetailPage';
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Rota pública para Login */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Rotas privadas que usam o MainLayout */}
+          <Route
+            path="/*"
+            element={
+              <PrivateRoute>
+                <MainLayout>
+                  <Routes>
+                    <Route path="/" element={<DashboardPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/documents" element={<DocumentsPage />} />
-                    <Route path="/new-case" element={<NewCasePage />} />
-                    <Route path="/request-search-service" element={<RequestSearchServicePage />} />
-                    <Route path="/case-analysis" element={<CaseAnalysisPage />} />
-                    <Route path="/proposal-contract" element={<ProposalContractPage />} />
-                    <Route path="/bank-negotiation" element={<BankNegotiationPage />} />
-                    <Route path="/formalization" element={<FormalizationPage />} />
-                    <Route path="/liquidation" element={<LiquidationPage />} />
-                    <Route path="/case-completion" element={<CaseCompletionPage />} />
-                  </Route>
-                </Routes>
-              </AuthProvider>
-            </Router>
-          );
-        }
+                    <Route path="/protocolos" element={<ProtocolsPage />} />
+                    <Route path="/protocolos/:protocolId" element={<ProtocolDetailPage />} />
+                    <Route path="/oficios" element={<OficiosPage />} />
+                    <Route path="/processos" element={<ProcessosPage />} />
+                    <Route path="/configuracoes" element={<SettingsPage />} />
+                  </Routes>
+                </MainLayout>
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
+}
 
-        export default App;
-        
+export default App;
