@@ -20,7 +20,12 @@ class CustomUser(AbstractUser):
     client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
 
     # ADICIONADO: Campo role para distinguir tipos de usuário
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='CLIENTE', verbose_name="Função")
+    role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        default='CLIENTE', 
+        verbose_name="Função"
+    )
     
     # ADICIONADO: Campo para o ID de Cliente personalizado
     client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")

@@ -84,22 +84,28 @@ export const AuthProvider = ({ children }) => {
     // Função de login
     const loginUser = async (email, password) => {
         try {
-            const response = await axios.post(`${baseURL}/api/token/`, {
-                email,
-                password
+            const response = await axiosInstance.post('/api/token/', {
+                username: email,
+                password: password,
             });
-            
-            if (response.status === 200) {
-                const data = response.data;
-                setAuthTokens(data);
-                decodeAndSetUser(data);
-                localStorage.setItem('authTokens', JSON.stringify(data));
-                navigate('/dashboard');
-                return { success: true };
-            }
+
+            const { access, refresh } = response.data;
+
+            // SALVAR TOKENS
+            localStorage.setItem('access_token', access);
+            localStorage.setItem('refresh_token', refresh);
+
+            // ATUALIZAR ESTADO
+            setUser({ email, isAuthenticated: true });
+            setIsAuthenticated(true);
+
+            return { success: true };
         } catch (error) {
-            console.error("Erro no login:", error);
-            return { success: false, error: "Credenciais inválidas." };
+            console.error('Erro no login:', error);
+            return { 
+                success: false, 
+                error: error.response?.data?.detail || 'Erro ao fazer login' 
+            };
         }
     };
 

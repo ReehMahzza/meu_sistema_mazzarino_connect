@@ -1,15 +1,15 @@
 # backend/core/views.py
 
 from django.contrib.auth import get_user_model
-from rest_framework import generics, permissions, status, serializers
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db import models
 from .models import Case, Document, ProcessMovement, Comunicacao
 from .serializers import (
     UserRegistrationSerializer, CaseSerializer, DocumentSerializer,
     ProcessMovementSerializer, ComunicacaoSerializer, ActorSerializer
 )
-from .serializers import ActorSerializer # Garanta que ActorSerializer está importado
 
 CustomUser = get_user_model()
 
@@ -372,3 +372,74 @@ class ComunicacaoListCreateView(generics.ListCreateAPIView):
         case_id = self.kwargs['case_id']
         case = Case.objects.get(id=case_id)
         serializer.save(autor=self.request.user, case=case)
+
+# ADICIONAR NOVA VIEW PARA LISTAR TODOS OS USUÁRIOS/CONTATOS
+class ContactListView(generics.ListAPIView):
+    """
+    View para listar todos os usuários/contatos
+    """
+    serializer_class = ActorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        # SIMPLIFICAR TEMPORARIAMENTE PARA DEBUG
+        print(f"DEBUG: Usuário autenticado: {self.request.user}")
+        print(f"DEBUG: Token presente: {bool(self.request.META.get('HTTP_AUTHORIZATION'))}")
+        
+        queryset = CustomUser.objects.all().order_by('-date_joined')
+        
+        # Aplicar filtros apenas se especificados
+        search = self.request.query_params.get('search', '')
+        user_type = self.request.query_params.get('type', '')
+        
+        if search:
+            queryset = queryset.filter(
+                models.Q(first_name__icontains=search) |
+                models.Q(last_name__icontains=search) |
+                models.Q(email__icontains=search) |
+                models.Q(cpf__icontains=search) if hasattr(CustomUser, 'cpf') else models.Q()
+            )
+        
+        if user_type:
+            queryset = queryset.filter(role=user_type)
+        
+        print(f"DEBUG: Queryset count: {queryset.count()}")
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            print(f"DEBUG: Executando list() na ContactListView")
+            response = super().list(request, *args, **kwargs)
+            print(f"DEBUG: Resposta gerada com sucesso")
+            return response
+        except Exception as e:
+            print(f"DEBUG: Erro na ContactListView: {str(e)}")
+            raise
+
+class ContactCreateView(generics.CreateAPIView):
+    """
+    View para criar novos contatos/usuários
+    """
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        is_full_user = self.request.data.get('is_full_user', False)
+        contact_type = self.request.data.get('contact_type', 'CLIENTE')
+        
+        user = serializer.save()
+        user.role = contact_type
+        
+        if is_full_user:
+            password = self.request.data.get('password', None)
+            if password:
+                user.set_password(password)
+            else:
+                user.set_password(f"temp{user.id}2024")
+            user.is_active = True
+        else:
+            user.set_unusable_password()
+            user.is_active = False
+            
+        user.save()
+        return user

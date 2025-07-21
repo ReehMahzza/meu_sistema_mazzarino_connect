@@ -17,8 +17,10 @@ from .views import (
     CaseLiquidationView,
     UserListView,
     CaseCompletionView,
-    ComunicacaoListCreateView,  # ADICIONADO: Import da nova View
-    ClientListView,  # ADICIONADO
+    ComunicacaoListCreateView,
+    ClientListView,
+    ContactListView,      # CORRETO: Import direto
+    ContactCreateView,    # CORRETO: Import direto
 )
 
 urlpatterns = [
@@ -43,11 +45,16 @@ urlpatterns = [
     path('cases/<int:pk>/liquidate/', CaseLiquidationView.as_view(), name='case-liquidation-update'),
     path('cases/<int:pk>/complete/', CaseCompletionView.as_view(), name='case-completion-update'),
 
-    path('users/', UserListView.as_view(), name='user-list'),
-
-    # ADICIONADO: Nova rota para a entidade Comunicacao
+    # Comunicações
     path('cases/<int:case_id>/comunicacoes/', ComunicacaoListCreateView.as_view(), name='comunicacao-list-create'),
     
-    # ADICIONADO: Nova rota para a lista de clientes
+    # Clientes (rota antiga)
     path('clients/', ClientListView.as_view(), name='client-list'),
+
+    # CONTATOS (CORRETO - SEM views. no início)
+    path('contacts/', ContactListView.as_view(), name='contact-list'),
+    path('contacts/create/', ContactCreateView.as_view(), name='contact-create'),
+    
+    # Usuários (manter para compatibilidade)
+    path('users/', UserListView.as_view(), name='user-list'),
 ]

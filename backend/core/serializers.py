@@ -39,10 +39,22 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class ActorSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    is_system_user = serializers.SerializerMethodField()
+    
     class Meta:
         model = get_user_model()
-        # ADICIONADO: client_id para aparecer em locais que usam este serializer
-        fields = ['id', 'first_name', 'last_name', 'email', 'client_id', 'role', 'telefone', 'cpf']
+        fields = [
+            'id', 'first_name', 'last_name', 'full_name', 'email', 
+            'cpf', 'telefone', 'role', 'is_active', 'is_system_user',
+            'date_joined', 'last_login', 'setor_ou_equipe'
+        ]
+        
+    def get_full_name(self, obj):
+        return f"{obj.first_name or ''} {obj.last_name or ''}".strip() or obj.email
+        
+    def get_is_system_user(self, obj):
+        return obj.is_active and obj.has_usable_password()
 
 class DocumentMovementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -112,3 +124,60 @@ class ComunicacaoSerializer(serializers.ModelSerializer):
             'assunto', 'corpo', 'timestamp'
         ]
         read_only_fields = ['autor', 'timestamp', 'case']
+
+# ADICIONAR NOVO SERIALIZER MAIS COMPLETO
+class ContactSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    is_system_user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id', 'first_name', 'last_name', 'full_name', 'email', 
+            'cpf', 'telefone', 'role', 'is_active', 'is_system_user',
+            'date_joined', 'last_login'
+        ]
+        
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+        
+    def get_is_system_user(self, obj):
+        return obj.is_active and obj.has_usable_password()
+
+# ATUALIZAR O UserRegistrationSerializer PARA SUPORTAR NOVOS CAMPOS
+class ContactCreateSerializer(serializers.ModelSerializer):
+    is_full_user = serializers.BooleanField(write_only=True, default=False)
+    contact_type = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES, default='CLIENTE')
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
+    class Meta:
+        model = CustomUser
+        fields = [
+            'first_name', 'last_name', 'email', 'cpf', 'telefone', 
+            'setor_ou_equipe', 'role', 'is_full_user', 'contact_type', 'password'
+        ]
+        
+    def create(self, validated_data):
+        is_full_user = validated_data.pop('is_full_user', False)
+        contact_type = validated_data.pop('contact_type', 'CLIENTE')
+        password = validated_data.pop('password', None)
+        
+        # Criar username baseado no email
+        validated_data['username'] = validated_data['email']
+        validated_data['role'] = contact_type
+        
+        user = CustomUser.objects.create(**validated_data)
+        
+        if is_full_user and password:
+            user.set_password(password)
+            user.is_active = True
+        elif is_full_user:
+            # Senha temporária
+            user.set_password(f"temp{user.id}2024")
+            user.is_active = True
+        else:
+            user.set_unusable_password()
+            user.is_active = False
+            
+        user.save()
+        return user

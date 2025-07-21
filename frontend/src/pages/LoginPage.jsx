@@ -1,4 +1,4 @@
-        /*
+/*
         ================================================================================
         ARQUIVO: frontend/src/pages/LoginPage.jsx (REFATORADO)
         ================================================================================
@@ -9,64 +9,155 @@
         import Input from '../components/ui/Input';
         import Button from '../components/ui/Button';
         import MessageAlert from '../components/ui/MessageAlert';
+        import { useNavigate } from 'react-router-dom';
+        // CORRIGIDO: Caminho do axiosInstance
+        import axiosInstance from '../config/axiosConfig';
 
         function LoginPage() {
             const { loginUser } = useContext(AuthContext);
-            const [email, setEmail] = useState('');
-            const [password, setPassword] = useState('');
+            const [formData, setFormData] = useState({
+                email: '',
+                password: ''
+            });
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
+            const navigate = useNavigate();
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: value
+                }));
+            };
 
             const handleLogin = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                setError(''); // Limpa erros anteriores
+                setError('');
 
-                const result = await loginUser(email, password);
-                if (result && result.success === false) {
-                    setError(result.error || "Falha no login. Verifique suas credenciais.");
+                try {
+                    console.log('🔑 Tentando fazer login...');
+                    
+                    // TESTE 1: Com email direto
+                    const loginData = {
+                        email: formData.email,          // ← MUDANÇA: email em vez de username
+                        password: formData.password,
+                    };
+                    
+                    console.log('📤 TESTE 1 - Enviando com "email":', loginData);
+                    
+                    const response = await axiosInstance.post('/api/token/', loginData);
+                    
+                    const { access, refresh } = response.data;
+                    
+                    if (access && refresh) {
+                        localStorage.setItem('access_token', access);
+                        localStorage.setItem('refresh_token', refresh);
+                        console.log('✅ Login realizado com sucesso!');
+                        navigate('/dashboard');
+                    } else {
+                        throw new Error('Tokens não recebidos do servidor');
+                    }
+
+                } catch (error) {
+                    console.error('❌ TESTE 1 FALHOU. Tentando TESTE 2...');
+                    
+                    // TESTE 2: Se falhar, tentar com username
+                    try {
+                        const loginData2 = {
+                            username: formData.email,       // ← FALLBACK: username
+                            password: formData.password,
+                        };
+                        
+                        console.log('📤 TESTE 2 - Enviando com "username":', loginData2);
+                        
+                        const response2 = await axiosInstance.post('/api/token/', loginData2);
+                        const { access, refresh } = response2.data;
+                        
+                        if (access && refresh) {
+                            localStorage.setItem('access_token', access);
+                            localStorage.setItem('refresh_token', refresh);
+                            console.log('✅ TESTE 2 funcionou!');
+                            navigate('/dashboard');
+                            return;
+                        }
+                    } catch (error2) {
+                        console.error('❌ TESTE 2 também falhou:', error2.response?.data);
+                    }
+                    
+                    // Se ambos falharam, mostrar erro
+                    console.error('❌ ERRO COMPLETO:', error);
+                    if (error.response) {
+                        console.error('📋 Status HTTP:', error.response.status);
+                        console.error('📋 Dados do erro:', error.response.data);
+                        
+                        const errorMsg = error.response.data?.detail || 
+                                       error.response.data?.email?.[0] ||        // ← NOVO: capturar erro de email
+                                       error.response.data?.non_field_errors?.[0] || 
+                                       'Credenciais inválidas';
+                        setError(errorMsg);
+                    } else {
+                        setError('Erro de conexão com o servidor');
+                    }
+                } finally {
+                    setLoading(false);
                 }
-                setLoading(false);
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-100 font-sans">
-                    <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
-                        <h2 className="text-3xl font-bold text-gray-800 mb-6">Portal Mazzarino Connect</h2>
-                        <p className="text-gray-600 mb-6">Acesso exclusivo para funcionários</p>
+                <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                    <div className="max-w-md w-full space-y-8">
+                        <div>
+                            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                                Fazer Login
+                            </h2>
+                        </div>
                         
-                        <form onSubmit={handleLogin} className="space-y-6">
-                            <Input
-                                label="E-mail ou Usuário"
-                                type="email"
-                                name="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="seu.email@exemplo.com"
-                                required
-                            />
-                            <Input
-                                label="Senha"
-                                type="password"
-                                name="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Sua senha"
-                                required
-                            />
+                        {error && <MessageAlert type="error" message={error} />}
+                        
+                        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+                            <div>
+                                <label htmlFor="email" className="sr-only">Email</label>
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    required
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    className="relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="Seu email"
+                                />
+                            </div>
                             
-                            {error && <div className="mb-4"><MessageAlert message={error} type="error" /></div>}
+                            <div>
+                                <label htmlFor="password" className="sr-only">Senha</label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    className="relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="Sua senha"
+                                />
+                            </div>
 
-                            <Button type="submit" disabled={loading} variant="primary">
-                                {loading ? 'Entrando...' : 'Entrar'}
-                            </Button>
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                >
+                                    {loading ? 'Entrando...' : 'Entrar'}
+                                </button>
+                            </div>
                         </form>
-                        <p className="mt-4 text-sm text-blue-600 hover:underline cursor-pointer">Esqueceu sua senha?</p>
-                        <p className="mt-8 text-xs text-gray-500">© 2025 Mazzarino. Todos os direitos reservados.</p>
                     </div>
                 </div>
             );
         }
 
         export default LoginPage;
-        

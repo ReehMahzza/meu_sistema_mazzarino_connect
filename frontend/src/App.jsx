@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
 import PrivateRoute from './utils/PrivateRoute';
@@ -12,7 +12,9 @@ import OficiosPage from './pages/OficiosPage';
 import ProcessosPage from './pages/ProcessosPage';
 import SettingsPage from './pages/SettingsPage';
 import ProtocolDetailPage from './pages/ProtocolDetailPage';
-import NewProtocolPage from './pages/NewProtocolPage'; // 1. IMPORTE A NOVA PÁGINA
+import NewProtocolPage from './pages/NewProtocolPage';
+import ContactsPage from './pages/ContactsPage';
+import NewClientPage from './pages/NewClientPage';
 
 function App() {
   return (
@@ -20,22 +22,27 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route
             path="/*"
             element={
               <PrivateRoute>
                 <MainLayout>
                   <Routes>
-                    <Route path="/" element={<DashboardPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-
-                    {/* 2. ADICIONE A NOVA ROTA AQUI */}
-                    <Route path="/novo-protocolo" element={<NewProtocolPage />} />
-
+                    
+                    {/* Rotas de protocolos */}
                     <Route path="/protocolos" element={<ProtocolsPage />} />
                     <Route path="/protocolos/:protocolId" element={<ProtocolDetailPage />} />
+                    <Route path="/novo-protocolo" element={<NewProtocolPage />} />
                     <Route path="/oficios" element={<OficiosPage />} />
                     <Route path="/processos" element={<ProcessosPage />} />
+                    
+                    {/* Rotas de contatos */}
+                    <Route path="/contatos" element={<ContactsPage />} />
+                    <Route path="/novo-contato" element={<NewClientPage />} />
+                    
+                    {/* Configurações */}
                     <Route path="/configuracoes" element={<SettingsPage />} />
                   </Routes>
                 </MainLayout>
