@@ -1,12 +1,9 @@
-/*
-================================================================================
-ARQUIVO: frontend/src/context/AuthContext.jsx (VERSÃO ESTÁVEL FINAL PARA AUTH HEADER)
-================================================================================
-*/
+// frontend/src/context/AuthContext.jsx
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// Importa a instância única e configurada do Axios
+import axiosInstance from '../config/axiosConfig';
 
 const AuthContext = createContext();
 
@@ -21,9 +18,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
-    const baseURL = 'http://127.0.0.1:8000';
 
-    // Função para decodificar token
     const decodeAndSetUser = useCallback((tokens) => {
         if (tokens && tokens.access) {
             try {
@@ -43,7 +38,6 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    // Função de logout
     const logoutUser = useCallback(() => {
         setAuthTokens(null);
         setUser(null);
@@ -51,78 +45,47 @@ export const AuthProvider = ({ children }) => {
         navigate('/login');
     }, [navigate]);
 
-    // Instância do axios com interceptor
-    const axiosInstance = axios.create({
-        baseURL,
-        headers: { 'Content-Type': 'application/json' }
-    });
-
-            
-    // Interceptor para adicionar o token de autenticação nos headers
-    axiosInstance.interceptors.request.use(
-        (config) => {
-            const tokens = JSON.parse(localStorage.getItem('authTokens'));
-            if (tokens && tokens.access) {
-                config.headers.Authorization = `Bearer ${tokens.access}`;
-            }
-            return config;
-        },
-        (error) => Promise.reject(error)
-    );
-
-    // Interceptor para respostas 401
-    axiosInstance.interceptors.response.use(
-        (response) => response,
-        (error) => {
-            if (error.response?.status === 401) {
-                logoutUser();
-            }
-            return Promise.reject(error);
-        }
-    );
-
-    // Função de login
     const loginUser = async (email, password) => {
-        try {
-            const response = await axiosInstance.post('/api/token/', {
-                username: email,
-                password: password,
-            });
-
-            const { access, refresh } = response.data;
-
-            // SALVAR TOKENS
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-
-            // ATUALIZAR ESTADO
-            setUser({ email, isAuthenticated: true });
-            setIsAuthenticated(true);
-
-            return { success: true };
-        } catch (error) {
-            console.error('Erro no login:', error);
-            return { 
-                success: false, 
-                error: error.response?.data?.detail || 'Erro ao fazer login' 
-            };
+        const response = await axiosInstance.post('/api/token/', {
+            email: email,
+            password: password,
+        });
+        const tokens = response.data;
+        if (tokens) {
+            setAuthTokens(tokens);
+            decodeAndSetUser(tokens);
+            localStorage.setItem('authTokens', JSON.stringify(tokens));
         }
     };
 
-    // Efeito para carregar dados iniciais
     useEffect(() => {
-        if (authTokens) {
-            decodeAndSetUser(authTokens);
+        const storedTokens = localStorage.getItem('authTokens');
+        if (storedTokens) {
+            decodeAndSetUser(JSON.parse(storedTokens));
         }
         setLoading(false);
-    }, [authTokens, decodeAndSetUser]);
+
+        const interceptor = axiosInstance.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response?.status === 401 && error.config.url !== '/api/token/') {
+                    logoutUser();
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        return () => {
+            axiosInstance.interceptors.response.eject(interceptor);
+        };
+    }, [decodeAndSetUser, logoutUser]);
 
     const contextData = {
         user,
         authTokens,
         loginUser,
         logoutUser,
-        axiosInstance
+        axiosInstance, // <--- A LINHA QUE FALTAVA
     };
 
     return (

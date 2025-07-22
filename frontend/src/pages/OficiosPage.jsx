@@ -38,8 +38,8 @@ function OficiosPage() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">Ofícios</h1>
-                <Link to="/novo-protocolo">
-                    <Button variant="primary">+ Novo Protocolo</Button>
+                <Link to="/casos/novo" state={{ defaultCaseType: 'outros' }}>
+                    <Button variant="primary">+ Novo Ofício</Button>
                 </Link>
             </div>
 

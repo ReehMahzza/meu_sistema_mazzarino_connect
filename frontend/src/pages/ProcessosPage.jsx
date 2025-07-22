@@ -38,8 +38,8 @@ function ProcessosPage() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">Processos Administrativos</h1>
-                <Link to="/novo-protocolo">
-                    <Button variant="primary">+ Novo Protocolo</Button>
+                <Link to="/casos/novo" state={{ defaultCaseType: 'resolucao_conflitos_telecom' }}>
+                    <Button variant="primary">+ Novo Processo</Button>
                 </Link>
             </div>
 

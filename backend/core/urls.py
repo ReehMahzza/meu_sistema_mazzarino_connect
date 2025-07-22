@@ -9,14 +9,7 @@ from .views import (
     DocumentListCreateView,
     DocumentDetailView,
     ProcessMovementListCreateView,
-    RequestContractSearchView,
-    CaseAnalysisUpdateView,
-    CaseProposalContractView,
-    CaseNegotiationUpdateView,
-    CaseFormalizationView,
-    CaseLiquidationView,
     UserListView,
-    CaseCompletionView,
     ComunicacaoListCreateView,
     ClientListView,
     ContactListView,      # CORRETO: Import direto
@@ -35,15 +28,6 @@ urlpatterns = [
 
     # Rotas de Andamentos e Serviços
     path('cases/<int:case_id>/movements/', ProcessMovementListCreateView.as_view(), name='process-movement-list-create'),
-    path('cases/<int:case_id>/request-search-service/', RequestContractSearchView.as_view(), name='request-search-service'),
-
-    # Rotas de Fases do Processo (Update)
-    path('cases/<int:pk>/analyze/', CaseAnalysisUpdateView.as_view(), name='case-analysis-update'),
-    path('cases/<int:pk>/proposal-contract/', CaseProposalContractView.as_view(), name='case-proposal-contract-update'),
-    path('cases/<int:pk>/negotiate/', CaseNegotiationUpdateView.as_view(), name='case-negotiation-update'),
-    path('cases/<int:pk>/formalize/', CaseFormalizationView.as_view(), name='case-formalization-update'),
-    path('cases/<int:pk>/liquidate/', CaseLiquidationView.as_view(), name='case-liquidation-update'),
-    path('cases/<int:pk>/complete/', CaseCompletionView.as_view(), name='case-completion-update'),
 
     # Comunicações
     path('cases/<int:case_id>/comunicacoes/', ComunicacaoListCreateView.as_view(), name='comunicacao-list-create'),

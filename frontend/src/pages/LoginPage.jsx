@@ -10,8 +10,6 @@
         import Button from '../components/ui/Button';
         import MessageAlert from '../components/ui/MessageAlert';
         import { useNavigate } from 'react-router-dom';
-        // CORRIGIDO: Caminho do axiosInstance
-        import axiosInstance from '../config/axiosConfig';
 
         function LoginPage() {
             const { loginUser } = useContext(AuthContext);
@@ -37,64 +35,19 @@
                 setError('');
 
                 try {
-                    console.log('🔑 Tentando fazer login...');
-                    
-                    // TESTE 1: Com email direto
-                    const loginData = {
-                        email: formData.email,          // ← MUDANÇA: email em vez de username
-                        password: formData.password,
-                    };
-                    
-                    console.log('📤 TESTE 1 - Enviando com "email":', loginData);
-                    
-                    const response = await axiosInstance.post('/api/token/', loginData);
-                    
-                    const { access, refresh } = response.data;
-                    
-                    if (access && refresh) {
-                        localStorage.setItem('access_token', access);
-                        localStorage.setItem('refresh_token', refresh);
-                        console.log('✅ Login realizado com sucesso!');
-                        navigate('/dashboard');
-                    } else {
-                        throw new Error('Tokens não recebidos do servidor');
-                    }
-
+                    console.log('🔑 Tentando fazer login com:', formData);
+                    // A função loginUser do AuthContext deve ser a única responsável
+                    // por fazer a chamada de API e gerenciar o estado.
+                    await loginUser(formData.email, formData.password);
+                    console.log('✅ Login realizado com sucesso, navegando para o dashboard...');
+                    navigate('/dashboard');
                 } catch (error) {
-                    console.error('❌ TESTE 1 FALHOU. Tentando TESTE 2...');
-                    
-                    // TESTE 2: Se falhar, tentar com username
-                    try {
-                        const loginData2 = {
-                            username: formData.email,       // ← FALLBACK: username
-                            password: formData.password,
-                        };
-                        
-                        console.log('📤 TESTE 2 - Enviando com "username":', loginData2);
-                        
-                        const response2 = await axiosInstance.post('/api/token/', loginData2);
-                        const { access, refresh } = response2.data;
-                        
-                        if (access && refresh) {
-                            localStorage.setItem('access_token', access);
-                            localStorage.setItem('refresh_token', refresh);
-                            console.log('✅ TESTE 2 funcionou!');
-                            navigate('/dashboard');
-                            return;
-                        }
-                    } catch (error2) {
-                        console.error('❌ TESTE 2 também falhou:', error2.response?.data);
-                    }
-                    
-                    // Se ambos falharam, mostrar erro
-                    console.error('❌ ERRO COMPLETO:', error);
+                    // O erro agora será tratado pelo AuthContext, mas podemos
+                    // exibir uma mensagem genérica aqui.
+                    console.error('❌ Falha no login:', error);
                     if (error.response) {
-                        console.error('📋 Status HTTP:', error.response.status);
-                        console.error('📋 Dados do erro:', error.response.data);
-                        
-                        const errorMsg = error.response.data?.detail || 
-                                       error.response.data?.email?.[0] ||        // ← NOVO: capturar erro de email
-                                       error.response.data?.non_field_errors?.[0] || 
+                        const errorMsg = error.response.data?.detail ||
+                                       error.response.data?.non_field_errors?.[0] ||
                                        'Credenciais inválidas';
                         setError(errorMsg);
                     } else {
