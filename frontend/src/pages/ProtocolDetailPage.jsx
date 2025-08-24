@@ -1,5 +1,5 @@
 // frontend/src/pages/ProtocolDetailPage.jsx
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import CaseHeader from '../components/cases/CaseHeader';
@@ -8,7 +8,7 @@ import Timeline from '../components/cases/Timeline';
 import FinancialTab from '../components/cases/FinancialTab';
 import ProtocolSummaryTab from '../components/cases/ProtocolSummaryTab';
 import DocumentsTab from '../components/cases/DocumentsTab';
-import ActionMenu from '../components/cases/ActionMenu'; // MODIFICADO
+import ActionMenu from '../components/cases/ActionMenu';
 import AccessLogTable from '../components/cases/AccessLogTable';
 
 function ProtocolDetailPage() {
@@ -19,30 +19,43 @@ function ProtocolDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('Andamentos');
-
-    const fetchPageData = useCallback(async () => {
-        try {
-            if (!protocol) setLoading(true);
-            const [caseDetailsResponse, timelineResponse] = await Promise.all([
-                axiosInstance.get(`/api/cases/${protocolId}/`),
-                axiosInstance.get(`/api/cases/${protocolId}/timeline/`)
-            ]);
-            setProtocol(caseDetailsResponse.data);
-            setTimelineEvents(timelineResponse.data);
-        } catch (err) {
-            setError("Falha ao carregar os detalhes do protocolo.");
-        } finally {
-            setLoading(false);
-        }
-    }, [protocolId, axiosInstance, protocol]);
+    // ADICIONADO: Um "gatilho" para forçar a recarga dos dados
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
+        const fetchPageData = async () => {
+            try {
+                // Garante que o loading só apareça na carga inicial
+                if (!protocol) setLoading(true);
+                setError('');
+
+                const [caseDetailsResponse, timelineResponse] = await Promise.all([
+                    axiosInstance.get(`/api/cases/${protocolId}/`),
+                    axiosInstance.get(`/api/cases/${protocolId}/timeline/`)
+                ]);
+
+                setProtocol(caseDetailsResponse.data);
+                setTimelineEvents(timelineResponse.data);
+
+            } catch (err) {
+                setError("Falha ao carregar os detalhes do protocolo.");
+            } finally {
+                setLoading(false);
+            }
+        };
+ 
         fetchPageData();
-    }, []);
+    // MODIFICADO: O useEffect agora depende do refreshTrigger
+    }, [protocolId, axiosInstance, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Função que será chamada pelos componentes filhos para pedir uma atualização
+    const handleActionCompleted = () => {
+        setRefreshTrigger(prev => prev + 1); // Mudar o valor do gatilho força o useEffect a rodar novamente
+    };
 
     const handleAddDocument = (newDocument) => {
-        setProtocol(prev => ({...prev, documents: [...(prev.documents || []), newDocument]}));
-        fetchPageData();
+        setProtocol(prev => ({ ...prev, documents: [...(prev.documents || []), newDocument] }));
+        handleActionCompleted();
     };
 
     const renderTabContent = () => {
@@ -77,8 +90,8 @@ function ProtocolDetailPage() {
             <div className="mt-6">
                 {renderTabContent()}
             </div>
-            {/* MODIFICADO: InteractionBlock substituído por ActionMenu */}
-            <ActionMenu protocolId={protocolId} onActionCompleted={fetchPageData} />
+
+            <ActionMenu protocol={protocol} onActionCompleted={handleActionCompleted} />
         </div>
     );
 }

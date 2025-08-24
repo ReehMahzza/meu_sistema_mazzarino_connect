@@ -15,6 +15,8 @@ from .views import (
     ContactListView,      # CORRETO: Import direto
     ContactCreateView,    # CORRETO: Import direto
     TimelineView,
+    # ADICIONADO: Novas views de ação
+    AprovarDocumentosView, ReprovarDocumentosView, CriarOficioView, RegisterAccessView,
 )
 
 urlpatterns = [
@@ -45,4 +47,9 @@ urlpatterns = [
 
     # ADICIONADO: Nova rota para a timeline unificada
     path('cases/<int:case_id>/timeline/', TimelineView.as_view(), name='case-timeline'),
+
+    # ADICIONADO: Novas rotas de ação para um caso específico
+    path('cases/<int:pk>/aprovar-documentos/', AprovarDocumentosView.as_view(), name='case-approve-docs'),
+    path('cases/<int:pk>/reprovar-documentos/', ReprovarDocumentosView.as_view(), name='case-reject-docs'),
+    path('cases/<int:pk>/criar-oficio/', CriarOficioView.as_view(), name='case-create-oficio'),
 ]

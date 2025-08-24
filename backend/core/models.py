@@ -3,7 +3,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
-from django.utils import timezone # Adicionado para usar data/hora
+from django.utils import timezone
+from django.db.models import Max
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -77,6 +78,14 @@ class Case(models.Model):
         ('cartao_consignado', 'Cartão Consignado'),
         ('cartao_beneficio', 'Cartão Benefício'),
     ]
+    # ADICIONADO: Choices para a máquina de estados do protocolo
+    STATUS_CHOICES = [
+        ('AGUARDANDO_DOCUMENTOS', 'Aguardando Documentos'),
+        ('EM_ANALISE_IA', 'Em Análise (IA)'),
+        ('PENDENTE_SOLICITACAO_CONTRATOS', 'Pendente - Solicitação de Contratos'),
+        ('ANALISE_HUMANA', 'Em Análise (Humana)'),
+        ('EM_EXECUCAO_OFICIO', 'Em Execução de Ofício'),
+    ]
 
     # ADICIONADO: Campo para o ID de Protocolo personalizado
     protocol_id = models.CharField(max_length=30, unique=True, blank=True, null=True, editable=False, verbose_name="ID do Protocolo")
@@ -95,7 +104,13 @@ class Case(models.Model):
         related_name='client_cases',
         verbose_name="Cliente Associado"
     )
-    current_status = models.CharField(max_length=100, default='Em tramitação interna', verbose_name="Status Atual")
+    # MODIFICADO: O campo current_status agora usa as choices definidas
+    current_status = models.CharField(
+        max_length=50,
+        choices=STATUS_CHOICES,
+        default='AGUARDANDO_DOCUMENTOS',
+        verbose_name="Status Atual"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     case_type = models.CharField(
         max_length=50,

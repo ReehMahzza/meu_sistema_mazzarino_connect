@@ -6,7 +6,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Q
 from django.utils import timezone  # ADICIONADO: Para lidar com data e hora
-from datetime import timedelta     # ADICIONADO: Para calcular o intervalo de tempo
+from datetime import timedelta
+from django.shortcuts import get_object_or_404 # Adicionado
 from .models import Case, Document, ProcessMovement, Comunicacao, CustomUser
 from .serializers import (
     UserRegistrationSerializer, CaseSerializer, DocumentSerializer,
@@ -328,3 +329,128 @@ class TimelineView(APIView):
 
         serializer = TimelineEventSerializer(timeline_events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ADICIONADO: Novas "Views de Ação" para transição de estados
+
+class AprovarDocumentosView(APIView):
+    """
+    Ação para aprovar os documentos de um caso e mover o status
+    para 'Em Análise (IA)'.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, pk, *args, **kwargs):
+        case = get_object_or_404(Case, pk=pk)
+        
+        case.current_status = 'EM_ANALISE_IA'
+        case.save()
+
+        ProcessMovement.objects.create(
+            case=case, actor=request.user, movement_type="Documentos Aprovados",
+            content="A documentação inicial foi aprovada. O caso segue para a análise preliminar da IA."
+        )
+        
+        return Response({"status": "success", "message": "Documentos aprovados com sucesso."}, status=status.HTTP_200_OK)
+
+class ReprovarDocumentosView(APIView):
+    """
+    Ação para reprovar os documentos de um caso, mover o status para 'Pendente',
+    e criar automaticamente um caso-filho (Ofício) com uma tarefa inicial.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        parent_case = get_object_or_404(Case, pk=pk)
+
+        parent_case.current_status = 'PENDENTE_SOLICITAÇÃO_CONTRATOS'
+        parent_case.save()
+
+        ProcessMovement.objects.create(
+            case=parent_case,
+            actor=request.user,
+            movement_type="Documentos Incorretos",
+            content="Documentação reprovada ou incompleta. Um ofício de pendência foi gerado para tratamento."
+        )
+
+        new_oficio_case = Case.objects.create(
+            title=f"Ofício de Pendência Documental para o Protocolo {parent_case.protocol_id}",
+            parent_case=parent_case,
+            case_type='outros',
+            client=parent_case.client,
+            created_by=request.user
+        )
+
+        ProcessMovement.objects.create(
+            case=new_oficio_case,
+            actor=request.user,
+            movement_type="Tarefa Pendente",
+            content="Realizar contato com o cliente para solicitar a documentação pendente e oferecer o serviço de busca de contratos."
+        )
+
+        return Response({
+            "status": "success", 
+            "message": "Documentos reprovados e ofício de pendência criado com sucesso.",
+            "new_case_details": CaseSerializer(new_oficio_case).data
+        }, status=status.HTTP_200_OK)
+
+# MODIFICADO: Lógica de criação de caso-filho implementada
+class CriarOficioView(APIView):
+    """
+    Ação para criar um novo caso do tipo 'Ofício' (case_type='outros'),
+    vinculá-lo ao caso-pai e atualizar os status e andamentos.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        # 1. Obter a instância do caso-pai
+        parent_case = get_object_or_404(Case, pk=pk)
+        
+        # 2. Criar o novo objeto Case (o "Ofício")
+        new_oficio_case = Case.objects.create(
+            title=f"Ofício referente ao Protocolo {parent_case.protocol_id}",
+            parent_case=parent_case,
+            case_type='outros',  # Usando 'outros' para ofícios, conforme planejado
+            client=parent_case.client,
+            created_by=request.user
+        )
+
+        # 3. Atualizar o status do caso-pai
+        parent_case.current_status = 'EM_EXECUCAO_OFICIO'
+        parent_case.save()
+
+        # 4. Registrar o histórico (andamento) no caso-pai
+        ProcessMovement.objects.create(
+            case=parent_case,
+            actor=request.user,
+            movement_type="Criação de Ofício",
+            content=f"Um ofício foi gerado (Protocolo: {new_oficio_case.protocol_id}). O caso principal aguarda a conclusão do ofício."
+        )
+        
+        # 5. Serializar e retornar os dados do NOVO ofício criado
+        serializer = CaseSerializer(new_oficio_case)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class RegisterAccessView(APIView):
+    """
+    Registra um evento de 'Visualização' na timeline do caso.
+    Chamado pelo frontend sempre que a página de detalhes do protocolo é carregada.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id, *args, **kwargs):
+        # Garante que o usuário só pode registrar acesso em casos que ele criou.
+        case = get_object_or_404(Case, pk=case_id, created_by=request.user)
+
+        # Lógica anti-spam para não registrar visualizações repetidas em um curto espaço de tempo.
+        time_threshold = timezone.now() - timedelta(minutes=15)
+        if ProcessMovement.objects.filter(
+            case=case, actor=request.user, movement_type='Visualização', timestamp__gte=time_threshold
+        ).exists():
+            return Response({'message': 'Acesso recente já registrado.'}, status=status.HTTP_200_OK)
+
+        ProcessMovement.objects.create(
+            case=case,
+            actor=request.user,
+            movement_type='Visualização',
+            content=f'O usuário {request.user.get_full_name() or request.user.username} visualizou o protocolo.'
+        )
+        return Response({'message': 'Acesso registrado com sucesso.'}, status=status.HTTP_201_CREATED)

@@ -70,22 +70,11 @@ class CaseSerializer(serializers.ModelSerializer):
     client = ActorSerializer(read_only=True)
     created_by = ActorSerializer(read_only=True)
     client_id = serializers.IntegerField(write_only=True, required=False)
+    current_status = serializers.CharField(read_only=True)  # GARANTE QUE O STATUS VAI PARA O FRONT
 
     class Meta:
         model = Case
-        fields = [
-            'id', 'title', 'description', 'created_by', 'created_at',
-            'current_status', 'movements', 'client', 'client_id',
-            'bank_name', 'bank_code', 'contract_type',
-            'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
-            'proposal_sent_date', 'client_decision', 'docusign_status',
-            'dossier_sent_date', 'bank_response_status', 'counterproposal_details',
-            'final_agreement_sent_date',
-            'bank_payment_status', 'client_liquidation_date', 'commission_value',
-            'completion_date', 'final_communication_sent', 'survey_sent',
-            'case_type', 'parent_case',
-            'protocol_id'
-        ]
+        fields = '__all__'  # Inclui todos os campos, inclusive current_status
         read_only_fields = ['created_by', 'client', 'movements', 'protocol_id']
 
 class DocumentSerializer(serializers.ModelSerializer):
