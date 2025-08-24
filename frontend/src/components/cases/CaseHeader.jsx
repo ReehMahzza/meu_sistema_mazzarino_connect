@@ -1,12 +1,10 @@
 // frontend/src/components/cases/CaseHeader.jsx
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react'; // Importação correta
 
 function CaseHeader({ protocol }) {
-    if (!protocol) {
-        return null; // Não renderiza nada se não houver dados
-    }
+    if (!protocol) return null;
 
-    // Mapeamento de valores para exibição amigável
     const contractTypeMap = {
         'renegociacao_consignado': 'Renegociação Consignado INSS',
         'credito_pessoal': 'Crédito Pessoal',
@@ -21,11 +19,21 @@ function CaseHeader({ protocol }) {
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">{protocol.title}</h1>
-                    <p className="text-sm text-gray-500 mt-1">Protocolo ID: {protocol.id}</p>
+                    <p className="text-sm text-gray-500 mt-1">Protocolo: {protocol.protocol_id}</p>
                 </div>
-                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
-                    {protocol.current_status}
-                </span>
+                <div className="flex flex-col items-center gap-2">
+                    <QRCodeSVG 
+                        value={window.location.href} 
+                        size={80} 
+                        bgColor={"#ffffff"}
+                        fgColor={"#000000"}
+                        level={"L"}
+                        includeMargin={false}
+                    />
+                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {protocol.current_status}
+                    </span>
+                </div>
             </div>
             <div className="border-t border-gray-200 mt-4 pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>

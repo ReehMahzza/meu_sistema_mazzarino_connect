@@ -46,9 +46,14 @@ function ProtocolDetailPage() {
     };
 
     const renderTabContent = () => {
+        if (!protocol) return null;
+
         switch (activeTab) {
             case 'Andamentos':
-                return <Timeline movements={protocol.movements} />;
+                const filteredMovements = protocol.movements ? protocol.movements.filter(
+                    (movement) => movement.movement_type !== 'Visualização'
+                ) : [];
+                return <Timeline movements={filteredMovements} />;
             case 'Documentos':
                 return <DocumentsTab protocol={protocol} onDocumentAdd={handleAddDocument} />;
             case 'Financeiro':

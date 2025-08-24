@@ -4,7 +4,9 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db.models import Q # ADICIONADO: Para buscas complexas
+from django.db.models import Q
+from django.utils import timezone  # ADICIONADO: Para lidar com data e hora
+from datetime import timedelta     # ADICIONADO: Para calcular o intervalo de tempo
 from .models import Case, Document, ProcessMovement, Comunicacao, CustomUser
 from .serializers import (
     UserRegistrationSerializer, CaseSerializer, DocumentSerializer,
@@ -138,26 +140,59 @@ class ProcessMovementListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        """
+        MODIFICADO: Este método agora filtra os andamentos com base no parâmetro
+        'movement_type' da URL, além de retornar todos se o parâmetro não for fornecido.
+        """
         case_id = self.kwargs['case_id']
-        return ProcessMovement.objects.filter(
+        # Queryset base que garante a permissão do usuário ao caso
+        queryset = ProcessMovement.objects.filter(
             case_id=case_id,
             case__created_by=self.request.user
         ).select_related('actor', 'associated_document').order_by('-timestamp')
 
+        # ADICIONADO: Lógica de filtro por tipo de andamento
+        movement_type = self.request.query_params.get('movement_type', None)
+        if movement_type:
+            queryset = queryset.filter(movement_type=movement_type)
+
+        return queryset
+
     def perform_create(self, serializer):
+        """
+        MODIFICADO: Este método agora contém uma lógica anti-spam para evitar
+        o registro excessivo de andamentos do tipo 'Visualização'.
+        """
         case_id = self.kwargs['case_id']
-        case = Case.objects.get(id=case_id, created_by=self.request.user)
+        try:
+            case = Case.objects.get(id=case_id, created_by=self.request.user)
+        except Case.DoesNotExist:
+            raise serializers.ValidationError("Caso não encontrado ou acesso negado.")
 
-        associated_doc_obj = serializer.validated_data.get('associated_document') 
+        movement_type = serializer.validated_data.get('movement_type')
 
-        movement = serializer.save(
+        # ADICIONADO: Lógica Anti-Spam para andamentos de 'Visualização'
+        if movement_type == 'Visualização':
+            time_threshold = timezone.now() - timedelta(minutes=15)
+            # Verifica se já existe uma visualização recente pelo mesmo usuário no mesmo caso
+            recent_view_exists = ProcessMovement.objects.filter(
+                case=case,
+                actor=self.request.user,
+                movement_type='Visualização',
+                timestamp__gte=time_threshold
+            ).exists()
+
+            # Se já existe, retorna silenciosamente sem criar um novo registro
+            if recent_view_exists:
+                # Retornamos uma resposta vazia com status 200 OK para o frontend não tratar como erro
+                return Response(status=status.HTTP_200_OK)
+
+        # Se não for uma visualização ou se não houver registro recente, a criação prossegue
+        serializer.save(
             actor=self.request.user,
-            case=case,
-            associated_document=associated_doc_obj
+            case=case
         )
-        if movement.movement_type:
-            case.current_status = movement.movement_type
-            case.save()
+        # A resposta padrão de 201 Created será enviada automaticamente
 class UserListView(generics.ListAPIView):
     serializer_class = ActorSerializer
     permission_classes = [permissions.IsAuthenticated]
