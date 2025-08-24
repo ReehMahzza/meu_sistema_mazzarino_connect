@@ -14,6 +14,7 @@ from .views import (
     ClientListView,
     ContactListView,      # CORRETO: Import direto
     ContactCreateView,    # CORRETO: Import direto
+    TimelineView,
 )
 
 urlpatterns = [
@@ -41,4 +42,7 @@ urlpatterns = [
     
     # Usuários (manter para compatibilidade)
     path('users/', UserListView.as_view(), name='user-list'),
+
+    # ADICIONADO: Nova rota para a timeline unificada
+    path('cases/<int:case_id>/timeline/', TimelineView.as_view(), name='case-timeline'),
 ]

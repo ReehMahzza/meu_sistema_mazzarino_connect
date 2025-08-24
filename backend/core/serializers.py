@@ -10,7 +10,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('id', 'client_id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name', 'role')
+        fields = ('id', 'email', 'password', 'password2', 'cpf', 'telefone', 'first_name', 'last_name', 'client_id', 'role')
+        extra_kwargs = {
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+        }
         read_only_fields = ['id', 'client_id']
 
     def validate(self, attrs):
@@ -19,29 +23,35 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # ... (seu código de criação de usuário)
-        pass
+        validated_data.pop('password2')
+        email = validated_data.get('email')
+        username = email.split('@')[0]
+        counter = 1
+        while CustomUser.objects.filter(username=username).exists():
+            username = f"{email.split('@')[0]}{counter}"
+            counter += 1
+
+        validated_data['role'] = 'CLIENTE'
+
+        user = CustomUser.objects.create_user(
+            username=username,
+            **validated_data
+        )
+        return user
 
 class ActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ['id', 'client_id', 'first_name', 'last_name', 'email', 'role', 'telefone', 'cpf']
+        fields = ['id', 'first_name', 'last_name', 'email', 'client_id', 'role', 'telefone', 'cpf', 'setor_ou_equipe']
 
-# CORRIGIDO: DocumentSerializer movido para cima
-class DocumentSerializer(serializers.ModelSerializer):
-    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
-
+class DocumentMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = [
-            'id', 'case', 'file_name', 'file_type', 'file_url',
-            'upload_date', 'description', 'uploaded_by', 'uploaded_by_name'
-        ]
-        read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'uploaded_by_name']
+        fields = ['id', 'file_name', 'file_url']
 
 class ProcessMovementSerializer(serializers.ModelSerializer):
     actor = ActorSerializer(read_only=True)
-    associated_document = DocumentSerializer(read_only=True, required=False)
+    associated_document = DocumentMovementSerializer(read_only=True)
 
     class Meta:
         model = ProcessMovement
@@ -55,6 +65,40 @@ class ProcessMovementSerializer(serializers.ModelSerializer):
             'request_details': {'required': False}
         }
 
+class CaseSerializer(serializers.ModelSerializer):
+    movements = ProcessMovementSerializer(many=True, read_only=True)
+    client = ActorSerializer(read_only=True)
+    created_by = ActorSerializer(read_only=True)
+    client_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = Case
+        fields = [
+            'id', 'title', 'description', 'created_by', 'created_at',
+            'current_status', 'movements', 'client', 'client_id',
+            'bank_name', 'bank_code', 'contract_type',
+            'ia_analysis_result', 'human_analysis_result', 'technical_report_content',
+            'proposal_sent_date', 'client_decision', 'docusign_status',
+            'dossier_sent_date', 'bank_response_status', 'counterproposal_details',
+            'final_agreement_sent_date',
+            'bank_payment_status', 'client_liquidation_date', 'commission_value',
+            'completion_date', 'final_communication_sent', 'survey_sent',
+            'case_type', 'parent_case',
+            'protocol_id'
+        ]
+        read_only_fields = ['created_by', 'client', 'movements', 'protocol_id']
+
+class DocumentSerializer(serializers.ModelSerializer):
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = Document
+        fields = [
+            'id', 'case', 'file_name', 'file_type', 'file_url',
+            'upload_date', 'description', 'uploaded_by', 'uploaded_by_name'
+        ]
+        read_only_fields = ['uploaded_by', 'file_url', 'upload_date', 'uploaded_by_name']
+
 class ComunicacaoSerializer(serializers.ModelSerializer):
     autor = ActorSerializer(read_only=True)
 
@@ -64,27 +108,13 @@ class ComunicacaoSerializer(serializers.ModelSerializer):
             'id', 'case', 'autor', 'tipo_comunicacao', 'destinatario',
             'assunto', 'corpo', 'timestamp'
         ]
+        # CORRIGIDO: Adicionado 'case' aos campos somente leitura
         read_only_fields = ['autor', 'timestamp', 'case']
 
-class CaseSerializer(serializers.ModelSerializer):
-    movements = ProcessMovementSerializer(many=True, read_only=True)
-    client = ActorSerializer(read_only=True)
-    created_by = ActorSerializer(read_only=True)
-    client_id = serializers.IntegerField(write_only=True, required=False)
-    documents = DocumentSerializer(many=True, read_only=True)
-    comunicacoes = ComunicacaoSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Case
-        fields = [
-            'id', 'protocol_id', 'title', 'description', 'created_by', 'created_at',
-            'current_status', 'movements', 'client', 'client_id', 'bank_name',
-            'bank_code', 'contract_type', 'ia_analysis_result', 'human_analysis_result',
-            'technical_report_content', 'proposal_sent_date', 'client_decision',
-            'docusign_status', 'dossier_sent_date', 'bank_response_status',
-            'counterproposal_details', 'final_agreement_sent_date', 'bank_payment_status',
-            'client_liquidation_date', 'commission_value', 'completion_date',
-            'final_communication_sent', 'survey_sent', 'case_type', 'parent_case',
-            'documents', 'comunicacoes'
-        ]
-        read_only_fields = ['created_by', 'client', 'movements', 'documents', 'protocol_id', 'comunicacoes']
+# ADICIONADO: Novo serializer para o evento de timeline unificado
+class TimelineEventSerializer(serializers.Serializer):
+    type = serializers.CharField()
+    actor = ActorSerializer()
+    timestamp = serializers.DateTimeField()
+    content = serializers.CharField()
+    event_specific_details = serializers.DictField(required=False)

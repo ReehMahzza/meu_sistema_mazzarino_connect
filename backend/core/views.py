@@ -10,7 +10,8 @@ from datetime import timedelta     # ADICIONADO: Para calcular o intervalo de te
 from .models import Case, Document, ProcessMovement, Comunicacao, CustomUser
 from .serializers import (
     UserRegistrationSerializer, CaseSerializer, DocumentSerializer,
-    ProcessMovementSerializer, ComunicacaoSerializer, ActorSerializer
+    ProcessMovementSerializer, ComunicacaoSerializer, ActorSerializer,
+    TimelineEventSerializer # ADICIONADO
 )
 
 CustomUser = get_user_model()
@@ -276,3 +277,54 @@ class ContactCreateView(generics.CreateAPIView):
             
         user.save()
         return user
+
+# ADICIONADO: Nova view para a timeline unificada
+class TimelineView(APIView):
+    """
+    Retorna uma lista cronológica unificada de andamentos (ProcessMovement)
+    e comunicações (Comunicacao) para um caso específico.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, case_id, *args, **kwargs):
+        try:
+            case = Case.objects.get(id=case_id, created_by=request.user)
+        except Case.DoesNotExist:
+            return Response({"error": "Caso não encontrado ou acesso não permitido."}, status=status.HTTP_404_NOT_FOUND)
+
+        movements = ProcessMovement.objects.filter(case=case).select_related('actor', 'associated_document')
+        comunicacoes = Comunicacao.objects.filter(case=case).select_related('autor')
+
+        timeline_events = []
+
+        for movement in movements:
+            event = {
+                'type': 'Andamento',
+                'actor': movement.actor,
+                'timestamp': movement.timestamp,
+                'content': movement.content or movement.movement_type,
+                'event_specific_details': {
+                    'movement_type': movement.movement_type,
+                    'associated_document': DocumentSerializer(movement.associated_document).data if movement.associated_document else None,
+                }
+            }
+            timeline_events.append(event)
+
+        for comunicacao in comunicacoes:
+            event = {
+                'type': 'Comunicação',
+                'actor': comunicacao.autor,
+                'timestamp': comunicacao.timestamp,
+                'content': comunicacao.corpo,
+                'event_specific_details': {
+                    'communication_type': comunicacao.tipo_comunicacao,
+                    'subject': comunicacao.assunto,
+                    'recipient': comunicacao.destinatario,
+                }
+            }
+            timeline_events.append(event)
+
+        timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        serializer = TimelineEventSerializer(timeline_events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1,92 +1,84 @@
 // frontend/src/pages/ProtocolDetailPage.jsx
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import CaseHeader from '../components/cases/CaseHeader';
 import CaseTabs from '../components/cases/CaseTabs';
 import Timeline from '../components/cases/Timeline';
-import DocumentsTab from '../components/cases/DocumentsTab';
 import FinancialTab from '../components/cases/FinancialTab';
 import ProtocolSummaryTab from '../components/cases/ProtocolSummaryTab';
-import ComunicacaoTab from '../components/cases/ComunicacaoTab'; // 1. IMPORTE O NOVO COMPONENTE
+import DocumentsTab from '../components/cases/DocumentsTab';
+import ActionMenu from '../components/cases/ActionMenu'; // MODIFICADO
+import AccessLogTable from '../components/cases/AccessLogTable';
 
 function ProtocolDetailPage() {
     const { protocolId } = useParams();
     const { axiosInstance } = useContext(AuthContext);
-
     const [protocol, setProtocol] = useState(null);
+    const [timelineEvents, setTimelineEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('Andamentos');
 
+    const fetchPageData = useCallback(async () => {
+        try {
+            if (!protocol) setLoading(true);
+            const [caseDetailsResponse, timelineResponse] = await Promise.all([
+                axiosInstance.get(`/api/cases/${protocolId}/`),
+                axiosInstance.get(`/api/cases/${protocolId}/timeline/`)
+            ]);
+            setProtocol(caseDetailsResponse.data);
+            setTimelineEvents(timelineResponse.data);
+        } catch (err) {
+            setError("Falha ao carregar os detalhes do protocolo.");
+        } finally {
+            setLoading(false);
+        }
+    }, [protocolId, axiosInstance, protocol]);
+
     useEffect(() => {
-        const fetchProtocolDetails = async () => {
-            try {
-                setLoading(true);
-                setError('');
-                const response = await axiosInstance.get(`/api/cases/${protocolId}/`);
-                setProtocol(response.data);
-            } catch (err) {
-                setError("Falha ao carregar os detalhes do protocolo.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProtocolDetails();
-    }, [protocolId, axiosInstance]);
+        fetchPageData();
+    }, []);
 
     const handleAddDocument = (newDocument) => {
-        setProtocol(prevProtocol => {
-            const existingDocuments = prevProtocol.documents || [];
-            return {
-                ...prevProtocol,
-                documents: [...existingDocuments, newDocument]
-            };
-        });
+        setProtocol(prev => ({...prev, documents: [...(prev.documents || []), newDocument]}));
+        fetchPageData();
     };
 
     const renderTabContent = () => {
         if (!protocol) return null;
-
         switch (activeTab) {
             case 'Andamentos':
-                const filteredMovements = protocol.movements ? protocol.movements.filter(
-                    (movement) => movement.movement_type !== 'Visualização'
-                ) : [];
-                return <Timeline movements={filteredMovements} />;
+                const filteredEvents = timelineEvents.filter(e => e.event_specific_details?.movement_type !== 'Visualização');
+                return <Timeline events={filteredEvents} />;
             case 'Documentos':
                 return <DocumentsTab protocol={protocol} onDocumentAdd={handleAddDocument} />;
             case 'Financeiro':
                 return <FinancialTab protocol={protocol} />;
             case 'Resumo do Protocolo':
                 return <ProtocolSummaryTab protocol={protocol} />;
-
-            // 2. ADICIONE O CASE PARA A ABA COMUNICAÇÃO
-            case 'Comunicação':
-                return <ComunicacaoTab protocol={protocol} />;
-
             default:
                 return null;
         }
     };
 
-    if (loading) {
-        return <p className="text-center text-gray-500 mt-8">Carregando detalhes do protocolo...</p>;
-    }
-    if (error) {
-        return <p className="text-center text-red-500 bg-red-100 p-4 rounded-md mt-8">{error}</p>;
-    }
-    if (!protocol) {
-        return <p className="text-center text-gray-500 mt-8">Nenhum dado de protocolo para exibir.</p>;
-    }
+    if (loading) return <p className="text-center mt-8">Carregando...</p>;
+    if (error) return <p className="text-center text-red-500 mt-8">{error}</p>;
+    if (!protocol) return <p className="text-center mt-8">Protocolo não encontrado.</p>;
 
     return (
-        <div>
+        <div className="space-y-6">
             <CaseHeader protocol={protocol} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProtocolSummaryTab protocol={protocol} />
+                <AccessLogTable protocolId={protocolId} />
+            </div>
             <CaseTabs activeTab={activeTab} setActiveTab={setActiveTab} />
             <div className="mt-6">
                 {renderTabContent()}
             </div>
+            {/* MODIFICADO: InteractionBlock substituído por ActionMenu */}
+            <ActionMenu protocolId={protocolId} onActionCompleted={fetchPageData} />
         </div>
     );
 }
