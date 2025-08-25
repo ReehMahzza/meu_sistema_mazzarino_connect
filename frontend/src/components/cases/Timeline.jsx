@@ -1,71 +1,98 @@
 // frontend/src/components/cases/Timeline.jsx
+
 import React from 'react';
 
-// Ícone para Andamentos do Sistema
-const SystemIcon = () => (
-    <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
-    </svg>
-);
+// Função auxiliar para mapear tipos de andamento a cores de "badge"
+const getBadgeColor = (movementType) => {
+    const type = movementType.toLowerCase();
+    if (type.includes('aprovado') || type.includes('sucesso')) {
+        return 'bg-green-100 text-green-800'; // Positivo
+    }
+    if (type.includes('reprovado') || type.includes('incorreto') || type.includes('arquivado')) {
+        return 'bg-red-100 text-red-800'; // Negativo
+    }
+    if (type.includes('validação') || type.includes('análise')) {
+        return 'bg-yellow-100 text-yellow-800'; // Atenção / Em progresso
+    }
+    if (type.includes('nota interna') || type.includes('requisição')) {
+        return 'bg-gray-100 text-gray-800'; // Neutro
+    }
+    return 'bg-blue-100 text-blue-800'; // Informativo (padrão)
+};
 
-// Ícone para Comunicações Manuais
-const CommunicationIcon = () => (
-    <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm1.707 2.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0l5-5a1 1 0 00-1.414-1.414L10 10.586 3.707 7.293z" />
-    </svg>
-);
-
-function Timeline({ events }) {
-    if (!events || events.length === 0) {
+function Timeline({ movements }) {
+    if (!movements || movements.length === 0) {
         return (
-            <div className="bg-white shadow-md rounded-lg p-6 text-center text-gray-500">
-                Nenhum evento registrado para este caso.
+            <div className="bg-white shadow-md rounded-lg p-8 text-center">
+                <h3 className="text-lg font-medium text-gray-900">Histórico de Andamentos</h3>
+                <p className="mt-2 text-sm text-gray-500">Nenhum andamento registrado para este caso ainda.</p>
             </div>
         );
     }
 
+    const formatTimestamp = (timestamp) => {
+        if (!timestamp) return 'Data indisponível';
+        return new Date(timestamp).toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     return (
-        <div className="bg-white shadow-md rounded-lg p-6">
-            <div className="flow-root">
-                <ul className="-mb-8">
-                    {events.map((event, index) => (
-                        <li key={`${event.type}-${event.timestamp}-${index}`}>
-                            <div className="relative pb-8">
-                                {index !== events.length - 1 ? (
-                                    <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                                ) : null}
-                                <div className="relative flex items-start space-x-3">
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Histórico de Andamentos</h3>
+            <div className="space-y-6">
+                {movements.map((movement) => (
+                    <div key={movement.id} className="bg-white shadow-md rounded-lg overflow-hidden">
+                        <div className="grid grid-cols-1 md:grid-cols-4">
+                            {/* Coluna da Esquerda (Metadados) */}
+                            <div className="col-span-1 bg-gray-50 p-4 border-r border-gray-200">
+                                <div className="space-y-3">
                                     <div>
-                                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${event.type === 'Andamento' ? 'bg-blue-500' : 'bg-green-500'}`}>
-                                            {event.type === 'Andamento' ? <SystemIcon /> : <CommunicationIcon />}
-                                        </span>
+                                        <p className="text-xs font-medium text-gray-500">Ator</p>
+                                        <p className="text-sm font-semibold text-gray-800">
+                                            {movement.actor ? `${movement.actor.first_name || ''} ${movement.actor.last_name || ''}`.trim() : 'Sistema'}
+                                        </p>
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div>
-                                            <div className="flex justify-between items-center">
-                                                <p className="text-sm font-semibold text-gray-800">
-                                                    {event.type === 'Andamento' ? event.event_specific_details.movement_type : event.event_specific_details.communication_type}
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    {new Date(event.timestamp).toLocaleString('pt-BR')}
-                                                </p>
-                                            </div>
-                                            <p className="mt-0.5 text-sm text-gray-500">
-                                                Por: {event.actor ? event.actor.email : 'Sistema'}
-                                            </p>
-                                        </div>
-                                        <div className="mt-2 text-sm text-gray-700 bg-gray-50 p-3 rounded-md border">
-                                            {event.type === 'Comunicação' && (
-                                                <p className="font-semibold mb-2">Assunto: {event.event_specific_details.subject}</p>
-                                            )}
-                                            <div dangerouslySetInnerHTML={{ __html: event.content }} />
-                                        </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-gray-500">Setor/Equipa</p>
+                                        <p className="text-sm text-gray-600">{movement.actor?.setor_ou_equipe || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-gray-500">Data e Hora</p>
+                                        <p className="text-sm text-gray-600">{formatTimestamp(movement.timestamp)}</p>
                                     </div>
                                 </div>
                             </div>
-                        </li>
-                    ))}
-                </ul>
+
+                            {/* Coluna da Direita (Conteúdo) */}
+                            <div className="col-span-3 p-4">
+                                <div className="flex flex-col h-full">
+                                    <span className={`text-xs font-semibold mr-auto px-2.5 py-0.5 rounded-full ${getBadgeColor(movement.movement_type)}`}>
+                                        {movement.movement_type}
+                                    </span>
+                                    
+                                    <div className="mt-2 text-sm text-gray-700 flex-grow">
+                                        <p>{movement.content}</p>
+                                    </div>
+
+                                    {(movement.from_sector || movement.to_sector) && (
+                                        <div className="mt-4 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                            <p>
+                                                {movement.from_sector && <span>De: {movement.from_sector}</span>}
+                                                {movement.from_sector && movement.to_sector && <span className="mx-1">→</span>}
+                                                {movement.to_sector && <span>Para: {movement.to_sector}</span>}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

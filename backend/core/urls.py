@@ -15,8 +15,13 @@ from .views import (
     ContactListView,      # CORRETO: Import direto
     ContactCreateView,    # CORRETO: Import direto
     TimelineView,
-    # ADICIONADO: Novas views de ação
-    AprovarDocumentosView, ReprovarDocumentosView, CriarOficioView, RegisterAccessView,
+    CaseActionView, # Adicionado
+    CriarOficioView, RegisterAccessView,
+    ContractAnalysisDataView,
+    ContractAnalysisDataDetailView,
+    CaseChecklistView,
+    DocumentValidationCheckView,
+    DocumentValidationCheckDetailView, # ADICIONADO
 )
 
 urlpatterns = [
@@ -49,7 +54,14 @@ urlpatterns = [
     path('cases/<int:case_id>/timeline/', TimelineView.as_view(), name='case-timeline'),
 
     # ADICIONADO: Novas rotas de ação para um caso específico
-    path('cases/<int:pk>/aprovar-documentos/', AprovarDocumentosView.as_view(), name='case-approve-docs'),
-    path('cases/<int:pk>/reprovar-documentos/', ReprovarDocumentosView.as_view(), name='case-reject-docs'),
+    path('cases/<int:pk>/action/', CaseActionView.as_view(), name='case-action'),
     path('cases/<int:pk>/criar-oficio/', CriarOficioView.as_view(), name='case-create-oficio'),
+
+    # Novas rotas para o workflow de BPM
+    path('cases/<int:case_pk>/checklist/', CaseChecklistView.as_view(), name='case-checklist'),
+    path('cases/<int:case_pk>/document-validations/', DocumentValidationCheckView.as_view(), name='document-validation-list'),
+    path('cases/<int:case_pk>/contract-data/', ContractAnalysisDataView.as_view(), name='contract-data-list-create'),
+    path('contract-data/<int:pk>/', ContractAnalysisDataDetailView.as_view(), name='contract-data-detail'),
+    path('document-validations/<int:pk>/', DocumentValidationCheckDetailView.as_view(), name='document-validation-detail'),
+    
 ]

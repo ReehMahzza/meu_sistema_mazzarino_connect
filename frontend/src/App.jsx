@@ -14,7 +14,7 @@ import ProtocolDetailPage from './pages/ProtocolDetailPage';
 import OficiosPage from './pages/OficiosPage';
 import ProcessosPage from './pages/ProcessosPage';
 import SettingsPage from './pages/SettingsPage';
-import NewCasePage from './pages/NewCasePage'; // Importa o arquivo renomeado
+import NewCasePage from './pages/NewCasePage';
 
 function App() {
   return (
@@ -28,16 +28,16 @@ function App() {
                 <MainLayout>
                   <Routes>
                     <Route path="dashboard" element={<DashboardPage />} />
-                    <Route path="contatos" element={<ContactsPage />} />
-                    <Route path="novo-contato" element={<NewClientPage />} />
                     <Route path="protocolos" element={<ProtocolsPage />} />
                     <Route path="protocolos/:protocolId" element={<ProtocolDetailPage />} />
-                    <Route path="oficios" element={<OficiosPage />} />
-                    <Route path="processos" element={<ProcessosPage />} />
                     <Route path="configuracoes" element={<SettingsPage />} />
 
-                    {/* ROTA ATUALIZADA */}
-                    <Route path="casos/novo" element={<NewCasePage />} />
+                    {/* Rotas para Admin e Funcionários */}
+                    <Route path="contatos" element={<PrivateRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}><ContactsPage /></PrivateRoute>} />
+                    <Route path="novo-contato" element={<PrivateRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}><NewClientPage /></PrivateRoute>} />
+                    <Route path="casos/novo" element={<PrivateRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}><NewCasePage /></PrivateRoute>} />
+                    <Route path="oficios" element={<PrivateRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}><OficiosPage /></PrivateRoute>} />
+                    <Route path="processos" element={<PrivateRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}><ProcessosPage /></PrivateRoute>} />
                   </Routes>
                 </MainLayout>
               </PrivateRoute>

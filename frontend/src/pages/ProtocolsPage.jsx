@@ -8,7 +8,7 @@ function ProtocolsPage() {
     const [protocols, setProtocols] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const { axiosInstance } = useContext(AuthContext);
+    const { user, axiosInstance } = useContext(AuthContext);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -49,9 +49,11 @@ function ProtocolsPage() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">Protocolos</h1>
-                <Link to="/casos/novo" state={{ defaultCaseType: 'renegociacao_credito' }}>
-                    <Button variant="primary">+ Novo Protocolo</Button>
-                </Link>
+                {user && user.role !== 'CLIENTE' && (
+                    <Link to="/casos/novo" state={{ defaultCaseType: 'renegociacao_credito' }}>
+                        <Button variant="primary">+ Novo Protocolo</Button>
+                    </Link>
+                )}
             </div>
 
             {protocols.length === 0 ? (

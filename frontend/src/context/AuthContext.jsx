@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
                     email: decodedToken.email,
                     first_name: decodedToken.first_name || '',
                     last_name: decodedToken.last_name || '',
+                    role: decodedToken.role || null, // Adicionado para incluir o papel do usuário
                 });
             } catch (error) {
                 console.error("Erro ao decodificar token:", error);

@@ -18,51 +18,62 @@ class CustomUser(AbstractUser):
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True, verbose_name="CPF")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone")
     setor_ou_equipe = models.CharField(max_length=100, null=True, blank=True, verbose_name="Setor/Equipe")
-    client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
-
-    # ADICIONADO: Campo role para distinguir tipos de usuário
     role = models.CharField(
         max_length=20, 
         choices=ROLE_CHOICES, 
         default='CLIENTE', 
         verbose_name="Função"
     )
-    
-    # ADICIONADO: Campo para o ID de Cliente personalizado
     client_id = models.CharField(max_length=20, unique=True, blank=True, null=True, editable=False, verbose_name="ID de Cliente")
-
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = []
 
     def __str__(self):
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         return self.email
 
-    # ADICIONADO: Lógica para gerar o client_id automaticamente
     def save(self, *args, **kwargs):
-        if not self.pk and not self.client_id:
-            # A lógica depende do CPF. Se não houver CPF, o ID não será gerado.
-            if self.cpf:
+        if not self.pk:
+            if not self.username:
+                # Gera um username único a partir do e-mail para satisfazer o AbstractUser
+                base_username = self.email.split('@')[0]
+                username = base_username
+                counter = 1
+                while CustomUser.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                self.username = username
+
+            if self.role == 'CLIENTE' and self.cpf and not self.client_id:
                 cpf_digits = ''.join(filter(str.isdigit, self.cpf))
                 if len(cpf_digits) >= 3:
                     cpf_prefix = cpf_digits[:3]
-
                     now = timezone.now()
                     current_month = now.month
                     current_year = now.year
-
-                    # Conta quantos clientes já foram criados neste mês/ano para obter a sequência
                     sequence_count = CustomUser.objects.filter(
                         date_joined__year=current_year,
                         date_joined__month=current_month
                     ).count()
                     next_sequence = sequence_count + 1
-
-                    # Formata o ID final: XXX-MMSS/AAAA
                     self.client_id = f"{cpf_prefix}-{current_month:02d}{next_sequence:02d}/{current_year}"
+        super().save(*args, **kwargs)
 
-        super(CustomUser, self).save(*args, **kwargs)
+class ChecklistTemplate(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="Nome do Template de Checklist")
+    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
+
+    def __str__(self):
+        return self.name
+
+class RequiredDocument(models.Model):
+    template = models.ForeignKey(ChecklistTemplate, on_delete=models.CASCADE, related_name='required_documents', verbose_name="Template de Checklist")
+    document_name = models.CharField(max_length=255, verbose_name="Nome do Documento Obrigatório")
+    is_mandatory = models.BooleanField(default=True, verbose_name="É Obrigatório?")
+
+    def __str__(self):
+        return f"{self.document_name} ({'Obrigatório' if self.is_mandatory else 'Opcional'}) - Template: {self.template.name}"
 
 class Case(models.Model):
     CASE_TYPE_CHOICES = [
@@ -78,18 +89,27 @@ class Case(models.Model):
         ('cartao_consignado', 'Cartão Consignado'),
         ('cartao_beneficio', 'Cartão Benefício'),
     ]
-    # ADICIONADO: Choices para a máquina de estados do protocolo
     STATUS_CHOICES = [
-        ('AGUARDANDO_DOCUMENTOS', 'Aguardando Documentos'),
-        ('EM_ANALISE_IA', 'Em Análise (IA)'),
-        ('PENDENTE_SOLICITACAO_CONTRATOS', 'Pendente - Solicitação de Contratos'),
-        ('ANALISE_HUMANA', 'Em Análise (Humana)'),
-        ('EM_EXECUCAO_OFICIO', 'Em Execução de Ofício'),
+        # Fase 1: Análise e Onboarding
+        ('ONBOARDING', '1. Onboarding e Preenchimento'),
+        ('VALIDACAO_DOCUMENTAL', '2. Validação Documental'),
+        ('EXTRACAO_DADOS', '3. Extração de Dados dos Contratos'),
+        ('ANALISE_FINANCEIRA_PREL', '4. Análise Financeira Preliminar'),
+        ('PRE_ANALISE_FINAL', '5. Pré-Análise Final'),
+        # Fase 2: Comercial e Técnica
+        ('FASE_COMERCIAL', '6. Fase Comercial'),
+        ('PROPOSTA_COMERCIAL', '7. Proposta Comercial'),
+        ('AGUARDANDO_TAXAS', '8. Aguardando Pagamento de Taxas'),
+        ('ANALISE_TECNICA', '9. Análise Técnica Aprofundada'),
+        ('VALIDACAO_E_CONVERSAO', '10. Validação Final e Conversão'),
+        # Estados Finais
+        ('FINALIZADO', 'Finalizado'),
+        ('ARQUIVADO', 'Arquivado'),
+        # Estados de Exceção/Aguardando
+        ('AGUARDANDO_OFICIO', 'Aguardando Resolução de Ofício'),
+        ('REANALISE', 'Em Reanálise'),
     ]
-
-    # ADICIONADO: Campo para o ID de Protocolo personalizado
     protocol_id = models.CharField(max_length=30, unique=True, blank=True, null=True, editable=False, verbose_name="ID do Protocolo")
-
     title = models.CharField(max_length=255, verbose_name="Título do Caso")
     description = models.TextField(blank=True, null=True, verbose_name="Descrição")
     created_by = models.ForeignKey(
@@ -104,12 +124,19 @@ class Case(models.Model):
         related_name='client_cases',
         verbose_name="Cliente Associado"
     )
-    # MODIFICADO: O campo current_status agora usa as choices definidas
     current_status = models.CharField(
-        max_length=50,
+        max_length=100,
         choices=STATUS_CHOICES,
-        default='AGUARDANDO_DOCUMENTOS',
+        default='ONBOARDING',
         verbose_name="Status Atual"
+    )
+    # ADICIONADO: Campo para conectar o caso a um template de checklist
+    checklist_template = models.ForeignKey(
+        ChecklistTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Checklist de Documentos Aplicável"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     case_type = models.CharField(
@@ -362,3 +389,88 @@ class Comunicacao(models.Model):
 
     def __str__(self):
         return f"{self.tipo_comunicacao} em '{self.case.title}' - {self.assunto}"
+
+# ADICIONADO: Novo modelo para o checklist de validação de documentos
+class DocumentValidationCheck(models.Model):
+    document = models.OneToOneField(
+        Document, 
+        on_delete=models.CASCADE, 
+        related_name='validation_check', 
+        verbose_name="Documento"
+    )
+    VALIDATION_STATUS_CHOICES = [
+        ('PENDENTE', 'Pendente'),
+        ('APROVADO', 'Aprovado'),
+        ('REPROVADO', 'Reprovado'),
+    ]
+    status = models.CharField(
+        max_length=20, 
+        choices=VALIDATION_STATUS_CHOICES, 
+        default='PENDENTE',
+        verbose_name="Status da Validação"
+    )
+    visibilidade_ok = models.BooleanField(default=False, verbose_name="Visibilidade e Iluminação OK")
+    legibilidade_ok = models.BooleanField(default=False, verbose_name="Legibilidade do Texto OK")
+    frente_e_verso_ok = models.BooleanField(default=False, verbose_name="Frente e Verso/Todas as Páginas OK")
+    documento_correto_ok = models.BooleanField(default=False, verbose_name="Documento é o Solicitado OK")
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='validated_checks',
+        verbose_name="Validado por"
+    )
+    validated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Data da Validação"
+    )
+    rejection_reason = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Motivo da Reprovação"
+    )
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+             self.validated_at = timezone.now()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Checklist para {self.document.file_name} - Status: {self.get_status_display()}"
+
+    class Meta:
+        verbose_name = "Checklist de Validação de Documento"
+        verbose_name_plural = "Checklists de Validação de Documentos"
+
+class ContractAnalysisData(models.Model):
+    case = models.OneToOneField(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='contract_data',
+        verbose_name="Caso Associado"
+    )
+    valor_credito_liberado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Valor do Crédito Liberado")
+    valor_total_financiado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Valor Total Financiado (com taxas)")
+    valor_parcela = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor da Parcela Mensal")
+    numero_total_parcelas = models.IntegerField(null=True, blank=True, verbose_name="Número Total de Parcelas")
+    taxa_juros_mensal_contrato = models.DecimalField(max_digits=5, decimal_places=3, null=True, blank=True, verbose_name="Taxa de Juros Mensal (%)")
+    taxa_juros_anual_contrato = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, verbose_name="Taxa de Juros Anual (%)")
+    cet_anual_contrato = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True, verbose_name="CET Anual (%)")
+    
+    data_assinatura_contrato = models.DateField(null=True, blank=True, verbose_name="Data de Assinatura do Contrato")
+    data_vencimento_primeira_parcela = models.DateField(null=True, blank=True, verbose_name="Vencimento da 1ª Parcela")
+
+    tarifa_cadastro = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Tarifa de Cadastro (TC)")
+    seguro_prestamista = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Seguro Prestamista")
+    
+    dados_extraidos_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='extracted_data')
+    data_extracao = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Dados de Análise para o Protocolo: {self.case.protocol_id}"
+
+    class Meta:
+        verbose_name = "Dados de Análise de Contrato"
+        verbose_name_plural = "Dados de Análise de Contratos"

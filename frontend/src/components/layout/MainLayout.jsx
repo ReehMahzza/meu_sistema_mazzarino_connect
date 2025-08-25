@@ -16,7 +16,7 @@ const FaUsers = () => (
 
 const MainLayout = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { logoutUser } = useContext(AuthContext);
+  const { user, logoutUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -24,15 +24,16 @@ const MainLayout = ({ children }) => {
     navigate('/login');
   };
 
-  // ATUALIZADO: Lista de navegação com novo item Contatos
-  const navItems = [
-    { icon: <FaTachometerAlt size={22} />, text: 'Dashboard', path: '/dashboard' },
-    { icon: <FaBook size={22} />, text: 'Protocolos', path: '/protocolos' },
-    { icon: <FaFileAlt size={22} />, text: 'Ofícios', path: '/oficios' },
-    { icon: <FaBriefcase size={22} />, text: 'Processos', path: '/processos' },
-    { icon: <FaUsers size={22} />, text: 'Contatos', path: '/contatos' }, 
-    { icon: <FaCog size={22} />, text: 'Configurações', path: '/configuracoes' },
+  const allNavItems = [
+    { icon: <FaTachometerAlt size={22} />, text: 'Dashboard', path: '/dashboard', roles: ['ADMIN', 'FUNCIONARIO', 'CLIENTE'] },
+    { icon: <FaBook size={22} />, text: 'Protocolos', path: '/protocolos', roles: ['ADMIN', 'FUNCIONARIO', 'CLIENTE'] },
+    { icon: <FaFileAlt size={22} />, text: 'Ofícios', path: '/oficios', roles: ['ADMIN', 'FUNCIONARIO'] },
+    { icon: <FaBriefcase size={22} />, text: 'Processos', path: '/processos', roles: ['ADMIN', 'FUNCIONARIO'] },
+    { icon: <FaUsers size={22} />, text: 'Contatos', path: '/contatos', roles: ['ADMIN', 'FUNCIONARIO'] }, 
+    { icon: <FaCog size={22} />, text: 'Configurações', path: '/configuracoes', roles: ['ADMIN', 'FUNCIONARIO', 'CLIENTE'] },
   ];
+
+  const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   // ADICIONADO: Estilo para link ativo
   const activeLinkStyle = {
